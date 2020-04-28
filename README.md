@@ -16,6 +16,7 @@ module purge
 module load PrgEnv-cray 
 module load craype-haswell
 make
+```
 
 ### Example on Cori
 
