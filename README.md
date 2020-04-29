@@ -1,20 +1,25 @@
+### Modules
+
+```
+module purge
+module load PrgEnv-cray 
+module load craype-haswell
+module load papi
+```
+
+You may also need to unload the darshan module.
+
 ### AriesNCL
 
 ```
 cd lib/AriesNCL/src
-module load papi
 make
 ```
-
-You may also need to unload the darshan module.
 
 ### Pzheevd
 
 ```
 cd eigensolvers
-module purge
-module load PrgEnv-cray 
-module load craype-haswell
 make
 ```
 
