@@ -110,7 +110,7 @@ program pzheevd_aries
    integer :: llda, i
 
    character(len=9) :: procOrder = "Row-major"
-   character(len=10), dimension(4) :: argc
+   character(len=10), dimension(5) :: argc
 
    !ADDED DEFINITIONS
    integer :: ml, nl
@@ -130,7 +130,7 @@ program pzheevd_aries
    integer, external ::   numroc
 
    !AriesNCL variables 
-   integer(c_int) :: nodes = 2
+   integer(c_int) :: nodes
    integer :: r
    integer, allocatable :: members(:)
    type(MPI_Comm) :: mod_comm
@@ -138,6 +138,10 @@ program pzheevd_aries
    
    character(kind=c_char,len=:), allocatable :: progname
    integer :: arglen
+
+   character(len=4) :: str_nodes, str_rpn
+   character(len=6) :: str_ln
+   character(len=:), allocatable :: filename
    
    integer(c_int) :: AC_event_set !int in C
    type(c_ptr), dimension(:), allocatable :: AC_events !char ** in C 
@@ -159,7 +163,7 @@ program pzheevd_aries
    end if
 
    !print *, rank
-   do i = 1, 4
+   do i = 1, 5
       call get_command_argument(i, argc(i))
    end do
 
@@ -167,14 +171,15 @@ program pzheevd_aries
    call convert_to_int(argc(2), lnprow, err)
    call convert_to_int(argc(3), lnpcol, err)
    call convert_to_int(argc(4), lnbrow, err)
+   call convert_to_int(argc(5), nodes, err)
    lnbcol = lnbrow
 
    !if (rank == 0) then
-   !   print *, size
    !   print *, "ln =", ln
    !   print *, "lnprow =", lnprow
    !   print *, "lnpcol =", lnpcol
    !   print *, "lnbropw =", lnbrow
+   !   print *, "nodes =", nodes
    !end if
 
    !AriesNCL 
@@ -201,9 +206,33 @@ program pzheevd_aries
    !   print*, "There is a problem in the MPI_Init function."
    !end if
 
-   call get_command_argumeNT(0,length=arglen)
+   call get_command_argument(0,length=arglen)
    allocate(character(arglen) :: progname)
-   call get_commaND_argument(0,value=progname)
+   call get_command_argument(0,value=progname)
+
+   if (rank == 0) then
+        write(*,*) progname
+   end if
+   write(str_nodes,*) nodes 
+   str_nodes = adjustl(str_nodes)
+   if (rank == 0) then
+        write(*,*) str_nodes
+   end if
+   write(str_rpn,*) size/nodes 
+   str_rpn = adjustl(str_rpn)
+   if (rank == 0) then
+        write(*,*) str_rpn
+   end if
+   write(str_ln,*) ln 
+   str_ln = adjustl(str_ln)
+   if (rank == 0) then
+        write(*,*) str_ln
+   end if
+   allocate(character(len=len(progname)+len(str_nodes)+len(str_ln)+len(str_rpn)+3) :: filename)
+   filename = progname//'-'//trim(str_nodes)//'-'//trim(str_ln)//'-'//trim(str_rpn)
+   if (rank == 0) then
+        write(*,*) filename
+   end if
 
    call blacs_get(moneI, zeroI, ctxt_sys)
    !print *, ctxt_sys
@@ -255,7 +284,7 @@ program pzheevd_aries
    t1 = MPI_WTIME()
 
    !AriesNCL 
-   call f_InitAriesCounters(progname, rank, size/nodes, AC_event_set, AC_events, AC_values, AC_event_count)
+   call f_InitAriesCounters(filename, rank, size/nodes, AC_event_set, AC_events, AC_values, AC_event_count)
    call f_StartRecordAriesCounters(rank, size/nodes, AC_event_set, AC_events, AC_values, AC_event_count)
 
    call pzheevd(jobz, uplo, ln, a_ref, ia, ja, desca, w, z, iz, jz, descz, temp, moneI, rtemp, moneI, liwork, moneI, info)
