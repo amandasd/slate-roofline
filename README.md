@@ -31,7 +31,7 @@ salloc --qos=interactive -C haswell --time=120 --nodes=2
 cd eigensolvers
 srun -N 2 -n 4 --cpu_bind=cores ./pzheevd_aries 1024 2 2 256 2
 ```
-number-of-nodes (N): 2 
+number of nodes (N): 2 
 
 number of MPI ranks (n): 4
 
@@ -43,6 +43,7 @@ number of column ranks (ny): 2
 
 size of the blocks (nb): 256 
 
-number-of-nodes: 2 
+number of nodes: 2 
+
 
 
