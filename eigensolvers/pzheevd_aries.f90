@@ -210,29 +210,14 @@ program pzheevd_aries
    allocate(character(arglen) :: progname)
    call get_command_argument(0,value=progname)
 
-   if (rank == 0) then
-        write(*,*) progname
-   end if
    write(str_nodes,*) nodes 
    str_nodes = adjustl(str_nodes)
-   if (rank == 0) then
-        write(*,*) str_nodes
-   end if
    write(str_rpn,*) size/nodes 
    str_rpn = adjustl(str_rpn)
-   if (rank == 0) then
-        write(*,*) str_rpn
-   end if
    write(str_ln,*) ln 
    str_ln = adjustl(str_ln)
-   if (rank == 0) then
-        write(*,*) str_ln
-   end if
    allocate(character(len=len(progname)+len(str_nodes)+len(str_ln)+len(str_rpn)+3) :: filename)
    filename = progname//'-'//trim(str_nodes)//'-'//trim(str_ln)//'-'//trim(str_rpn)
-   if (rank == 0) then
-        write(*,*) filename
-   end if
 
    call blacs_get(moneI, zeroI, ctxt_sys)
    !print *, ctxt_sys
