@@ -155,11 +155,11 @@ program pzheevd_aries
    end if
    call MPI_Comm_size(MPI_COMM_WORLD, size, err)
    if (err .ne. MPI_SUCCESS) then
-      print*, "There is a problem in the MPI_Init function."
+      print*, "There is a problem in the MPI_Comm_size function."
    end if
    call MPI_Comm_rank(MPI_COMM_WORLD, rank, err)
    if (err .ne. MPI_SUCCESS) then
-      print*, "There is a problem in the MPI_Init function."
+      print*, "There is a problem in the MPI_Comm_rank function."
    end if
 
    !print *, rank
@@ -190,20 +190,20 @@ program pzheevd_aries
    end do
    call MPI_Comm_group(MPI_COMM_WORLD, group_world, err)
    if (err .ne. MPI_SUCCESS) then
-      print*, "There is a problem in the MPI_Init function."
+      print*, "There is a problem in the MPI_Comm_group function."
    end if
    call MPI_Group_incl(group_world, nodes, members, mod_group, err)
    if (err .ne. MPI_SUCCESS) then
-      print*, "There is a problem in the MPI_Init function."
+      print*, "There is a problem in the MPI_Group_incl function."
    end if
    call MPI_Comm_create(MPI_COMM_WORLD, mod_group, mod_comm, err)
    if (err .ne. MPI_SUCCESS) then
-      print*, "There is a problem in the MPI_Init function."
+      print*, "There is a problem in the MPI_Comm_create function."
    end if
 
    !call MPI_Comm_rank(MPI_COMM_WORLD, my_rank, err)
    !if (err .ne. MPI_SUCCESS) then
-   !   print*, "There is a problem in the MPI_Init function."
+   !   print*, "There is a problem in the MPI_Comm_rank function."
    !end if
 
    call get_command_argument(0,length=arglen)
