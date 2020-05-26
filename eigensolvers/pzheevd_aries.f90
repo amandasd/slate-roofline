@@ -271,6 +271,7 @@ program pzheevd_aries
    !AriesNCL 
    call f_InitAriesCounters(filename, rank, size/nodes, AC_event_set, AC_events, AC_values, AC_event_count)
    call f_StartRecordAriesCounters(rank, size/nodes, AC_event_set, AC_events, AC_values, AC_event_count)
+   call MPI_Barrier(MPI_COMM_WORLD, err)
 
    call pzheevd(jobz, uplo, ln, a_ref, ia, ja, desca, w, z, iz, jz, descz, temp, moneI, rtemp, moneI, liwork, moneI, info)
    lwork     = temp(1)
@@ -285,6 +286,7 @@ program pzheevd_aries
    end if
 
    !AriesNCL 
+   call MPI_Barrier(MPI_COMM_WORLD, err)
    call f_EndRecordAriesCounters(rank, size/nodes, AC_event_set, AC_events, AC_values, AC_event_count)
    call f_FinalizeAriesCounters(mod_comm, rank, size/nodes, AC_event_set, AC_events, AC_values, AC_event_count)
 
