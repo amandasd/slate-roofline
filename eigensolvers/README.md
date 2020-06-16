@@ -43,7 +43,7 @@ number of nodes (N): 2
 
 number of MPI ranks (n): 4
 
-matrix size: 1024
+matrix size: 1024x1024
 
 number of row ranks (nx): 2 
 
