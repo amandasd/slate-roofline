@@ -9,8 +9,6 @@ You may also need to unload the darshan module.
 ### Environment variables
 
  ```
-export OMP_NUM_THREADS=1
-
 PAT_RT_PERFCTR_FILE=configurable_counters
 ```
 
