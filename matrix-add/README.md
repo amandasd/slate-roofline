@@ -75,7 +75,7 @@ number of columns in the matrix: 8192
 ### Advisor with multiple MPI ranks
 
 ```
-salloc --qos=interactive -C haswell --time=60 --nodes=1
+salloc --qos=interactive -C haswell --time=60 --nodes=2
 
 cd matrix-add
 srun -N 2 -n 4 -c 2 --cpu_bind=cores ./script.sh
