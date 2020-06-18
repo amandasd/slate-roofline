@@ -9,7 +9,7 @@ int matrix_vt_create(int nlin, int ncol, float *m)
   for(int i=0; i < nlin; i++)
     for(int j=0; j < ncol; j++)
       m[j+i*ncol] = i + j*2;
-  return(0);
+  return 0;
 }
 
 int matrix_vt_add(int num, float *m, float *n, float *r)
@@ -17,7 +17,7 @@ int matrix_vt_add(int num, float *m, float *n, float *r)
   for(int i=0; i < num; i++) {
     r[i] = m[i] + n[i];
   }
-  return(0);
+  return 0;
 }
 
 void matrix_vt_print(int nlin, int ncol, float *m)
@@ -177,7 +177,10 @@ int main(int argc, char **argv)
   //MPI_Scatter(matrix_A,(nlin/size)*ncol,MPI_FLOAT,vec_A,(nlin/size)*ncol,MPI_FLOAT,0,MPI_COMM_WORLD);
   //MPI_Scatter(matrix_B,(nlin/size)*ncol,MPI_FLOAT,vec_B,(nlin/size)*ncol,MPI_FLOAT,0,MPI_COMM_WORLD);
   //for(int i = 0; i < niter; i++) {
-  //   matrix_vt_add((nlin/size)*ncol,vec_A,vec_B,vec_A);
+  //   if(matrix_vt_add((nlin/size)*ncol,vec_A,vec_B,vec_A)) {
+  //      fprintf(stderr,"Rank %d: Error in addition operation.\n",rank);
+  //      return 1;
+  //   }
   //   MPI_Gather(vec_A,(nlin/size)*ncol,MPI_FLOAT,matrix_A,(nlin/size)*ncol,MPI_FLOAT,0,MPI_COMM_WORLD);
   //}
 
