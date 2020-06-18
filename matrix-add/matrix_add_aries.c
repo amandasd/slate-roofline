@@ -12,9 +12,9 @@ int matrix_vt_create(int nlin, int ncol, float *m)
   return(0);
 }
 
-int matrix_vt_add(int ncol, float *m, float *n, float *r)
+int matrix_vt_add(int num, float *m, float *n, float *r)
 {
-  for(int i=0; i < ncol; i++) {
+  for(int i=0; i < num; i++) {
     r[i] = m[i] + n[i];
   }
   return(0);
@@ -23,7 +23,6 @@ int matrix_vt_add(int ncol, float *m, float *n, float *r)
 void matrix_vt_print(int nlin, int ncol, float *m)
 {  
   for(int i=0; i < nlin; i++) {
-    fprintf(stderr,"Linha %d: ",i+1);
     for(int j=0; j < ncol; j++)
       fprintf(stderr,"%.3f ",m[j+i*ncol]);
     fprintf(stderr,"\n");
@@ -63,9 +62,9 @@ int main(int argc, char **argv)
   else
   {
      nlin = atoi(argv[1]);
-     ncol = atoi(argv[1]);
-     nodes = atoi(argv[2]);
-     cpn = atoi(argv[3]);
+     ncol = atoi(argv[2]);
+     nodes = atoi(argv[3]);
+     cpn = atoi(argv[4]);
   }
 
   // Since we only want to do a gather on every n'th rank, we need to create a new MPI_Group
@@ -93,31 +92,37 @@ int main(int argc, char **argv)
   if(rank == 0) {
      matrix_A = malloc(nlin*ncol*sizeof(float));
      if(matrix_A == NULL) {
-        fprintf(stderr,"malloc does not work (Matrix A)\n");
+        fprintf(stderr,"Error in Matrix A allocation.\n");
         return 1; 
      }
-     matrix_vt_create(nlin,ncol,matrix_A);
+     if(matrix_vt_create(nlin,ncol,matrix_A)) {
+        fprintf(stderr,"Error in Matrix A creation.\n");
+        return 1; 
+     }
 
      matrix_B = malloc(nlin*ncol*sizeof(float));
      if(matrix_B == NULL) {
-        fprintf(stderr,"malloc does not work (Matrix B)\n");
+        fprintf(stderr,"Error in Matrix B allocation.\n");
         return 1;
      }
-     matrix_vt_create(nlin,ncol,matrix_B);
+     if(matrix_vt_create(nlin,ncol,matrix_B)) {
+        fprintf(stderr,"Error in Matrix B creation.\n");
+        return 1; 
+     }
   }
   else {
      matrix_A = NULL;
      matrix_B = NULL;
   }
 
-  float *line_A = malloc((nlin/size)*ncol*sizeof(float));
-  if(line_A == NULL) {
-     fprintf(stderr,"malloc does not work (line A)\n");
+  float *vec_A = malloc((nlin/size)*ncol*sizeof(float));
+  if(vec_A == NULL) {
+     fprintf(stderr,"Error in vector A allocation.\n");
      return 1;
   }
-  float *line_B = malloc((nlin/size)*ncol*sizeof(float));
-  if(line_B == NULL) {
-     fprintf(stderr,"malloc does not work (line B)\n");
+  float *vec_B = malloc((nlin/size)*ncol*sizeof(float));
+  if(vec_B == NULL) {
+     fprintf(stderr,"Error in vector B allocation.\n");
      return 1;
   }
 
@@ -134,36 +139,46 @@ int main(int argc, char **argv)
 
   for(int i = 0; i < niter; i++) {
      if(rank == 0) {
-        for(int r = 1; r < size; r++) { 
-           MPI_Send(matrix_A+r*(nlin/size)*ncol,(nlin/size)*ncol,MPI_FLOAT,r,r,MPI_COMM_WORLD);
-           MPI_Send(matrix_B+r*(nlin/size)*ncol,(nlin/size)*ncol,MPI_FLOAT,r,size+r,MPI_COMM_WORLD);
-        }
+	if(size > 1) {
+           for(int r = 1; r < size; r++) { 
+              MPI_Send(matrix_A+r*(nlin/size)*ncol,(nlin/size)*ncol,MPI_FLOAT,r,r,MPI_COMM_WORLD);
+              MPI_Send(matrix_B+r*(nlin/size)*ncol,(nlin/size)*ncol,MPI_FLOAT,r,size+r,MPI_COMM_WORLD);
+           }
+	}
      }
      else {
-        MPI_Recv(line_A,(nlin/size)*ncol,MPI_FLOAT,0,rank,MPI_COMM_WORLD,&recv_status);
-        MPI_Recv(line_B,(nlin/size)*ncol,MPI_FLOAT,0,size+rank,MPI_COMM_WORLD,&recv_status);
+        MPI_Recv(vec_A,(nlin/size)*ncol,MPI_FLOAT,0,rank,MPI_COMM_WORLD,&recv_status);
+        MPI_Recv(vec_B,(nlin/size)*ncol,MPI_FLOAT,0,size+rank,MPI_COMM_WORLD,&recv_status);
      }
      if(rank == 0) {
-        matrix_vt_add((nlin/size)*ncol,matrix_A,matrix_B,matrix_A);
+        if(matrix_vt_add((nlin/size)*ncol,matrix_A,matrix_B,matrix_A)) {
+           fprintf(stderr,"Rank %d: Error in addition operation.\n",rank);
+	   return 1;
+	}
      }
      else {
-        matrix_vt_add((nlin/size)*ncol,line_A,line_B,line_A);
+        if(matrix_vt_add((nlin/size)*ncol,vec_A,vec_B,vec_A)) {
+           fprintf(stderr,"Rank %d: Error in addition operation.\n",rank);
+	   return 1;
+	}
      }
      if(rank == 0) {
-        for(int r = 1; r < size; r++) { 
-           MPI_Recv(matrix_A+r*(nlin/size)*ncol,(nlin/size)*ncol,MPI_FLOAT,r,2*size+r,MPI_COMM_WORLD,&recv_status);
-        }
+	if(size > 1) {
+           for(int r = 1; r < size; r++) { 
+              MPI_Recv(matrix_A+r*(nlin/size)*ncol,(nlin/size)*ncol,MPI_FLOAT,r,2*size+r,MPI_COMM_WORLD,&recv_status);
+           }
+	}
      }
      else {
-        MPI_Send(line_A,(nlin/size)*ncol,MPI_FLOAT,0,2*size+rank,MPI_COMM_WORLD);
+        MPI_Send(vec_A,(nlin/size)*ncol,MPI_FLOAT,0,2*size+rank,MPI_COMM_WORLD);
      }
   }
 
-  //MPI_Scatter(matrix_A,(nlin/size)*ncol,MPI_FLOAT,line_A,(nlin/size)*ncol,MPI_FLOAT,0,MPI_COMM_WORLD);
-  //MPI_Scatter(matrix_B,(nlin/size)*ncol,MPI_FLOAT,line_B,(nlin/size)*ncol,MPI_FLOAT,0,MPI_COMM_WORLD);
+  //MPI_Scatter(matrix_A,(nlin/size)*ncol,MPI_FLOAT,vec_A,(nlin/size)*ncol,MPI_FLOAT,0,MPI_COMM_WORLD);
+  //MPI_Scatter(matrix_B,(nlin/size)*ncol,MPI_FLOAT,vec_B,(nlin/size)*ncol,MPI_FLOAT,0,MPI_COMM_WORLD);
   //for(int i = 0; i < niter; i++) {
-  //   matrix_vt_add((nlin/size)*ncol,line_A,line_B,line_A);
-  //   MPI_Gather(line_A,(nlin/size)*ncol,MPI_FLOAT,matrix_A,(nlin/size)*ncol,MPI_FLOAT,0,MPI_COMM_WORLD);
+  //   matrix_vt_add((nlin/size)*ncol,vec_A,vec_B,vec_A);
+  //   MPI_Gather(vec_A,(nlin/size)*ncol,MPI_FLOAT,matrix_A,(nlin/size)*ncol,MPI_FLOAT,0,MPI_COMM_WORLD);
   //}
 
   MPI_Barrier(MPI_COMM_WORLD);
@@ -184,8 +199,8 @@ int main(int argc, char **argv)
      free(matrix_B);
   }
 
-  free(line_A);
-  free(line_B);
+  free(vec_A);
+  free(vec_B);
 
   MPI_Finalize();
   return 0;
