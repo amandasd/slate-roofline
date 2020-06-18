@@ -34,7 +34,7 @@ make
 salloc --qos=interactive -C haswell --time=60 --nodes=8
 
 cd matrix-add
-srun -N 8 -n 256 --cpu_bind=cores ./matrix_add_aries 8192 8192 8 32
+srun -N 8 -n 256 -c 2 --cpu_bind=cores ./matrix_add_aries 8192 8192 8 32
 ```
 number of nodes (N): 8 
 
@@ -52,7 +52,11 @@ number of MPI ranks per node: 32
 
 ```
 module load advisor
+```
 
+### Advisor with a Single MPI Rank
+
+```
 salloc --qos=interactive -C haswell --time=60 --nodes=1
 
 cd matrix-add
@@ -68,5 +72,23 @@ number of rows in the matrix: 32
 
 number of columns in the matrix: 8192
 
+### Advisor with a Multiple MPI Ranks
 
+```
+salloc --qos=interactive -C haswell --time=60 --nodes=1
+
+cd matrix-add
+srun -N 2 -n 4 -c 2 --cpu_bind=cores ./script.sh
+
+where script.sh is:
+
+#!/bin/bash
+if [ $SLURM_PROCID -eq 0 ]
+then
+ advixe-cl --collect survey --project-dir matrix_advisor-2-2-8192x8192  -- ./matrix_add_advisor 8192 8192
+else
+ ./matrix_add_advisor 8192 8192
+fi
+
+```
 
