@@ -48,13 +48,13 @@ number of nodes: 8
 
 number of MPI ranks per node: 32
 
-### Example on Cori to obtain the roofline data
+### Example on Cori to obtain the Roofline data
 
 ```
 module load advisor
 ```
 
-### Advisor with a Single MPI Rank
+### Advisor with a single MPI rank
 
 ```
 salloc --qos=interactive -C haswell --time=60 --nodes=1
@@ -72,7 +72,7 @@ number of rows in the matrix: 32
 
 number of columns in the matrix: 8192
 
-### Advisor with a Multiple MPI Ranks
+### Advisor with multiple MPI ranks
 
 ```
 salloc --qos=interactive -C haswell --time=60 --nodes=1
