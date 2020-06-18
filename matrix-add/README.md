@@ -1,5 +1,3 @@
-### AriesNCL DATA
-
 ### Modules
 
 ```
@@ -50,17 +48,11 @@ number of nodes: 8
 
 number of MPI ranks per node: 32
 
-### ROOFLINE DATA
-
-### Modules
-
-```
-module load advisor
-```
-
 ### Example on Cori to obtain the roofline data
 
 ```
+module load advisor
+
 salloc --qos=interactive -C haswell --time=60 --nodes=1
 
 cd matrix-add
