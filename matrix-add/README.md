@@ -36,13 +36,15 @@ make
 salloc --qos=interactive -C haswell --time=120 --nodes=8
 
 cd matrix-add
-srun -N 8 -n 256 --cpu_bind=cores ./matrix_add_aries 8192 8 32
+srun -N 8 -n 256 --cpu_bind=cores ./matrix_add_aries 8192 8192 8 32
 ```
 number of nodes (N): 8 
 
 number of MPI ranks (n): 256
 
-matrix size: 8192x8192
+number of rows in the matrix: 8192
+
+number of columns in the matrix: 8192
 
 number of nodes: 8 
 
