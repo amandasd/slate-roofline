@@ -85,10 +85,17 @@ where script.sh is:
 #!/bin/bash
 if [ $SLURM_PROCID -eq 0 ]
 then
- advixe-cl --collect survey --project-dir matrix_advisor-2-4-8192x8192  -- ./matrix_add_advisor 8192 8192
+   advixe-cl --collect survey --project-dir matrix_advisor-2-4-8192x8192  -- ./matrix_add_advisor 8192 8192
 else
- ./matrix_add_advisor 8192 8192
+   ./matrix_add_advisor 8192 8192
 fi
 
+```
+
+### Printing Roofline data
+
+```
+cd scripts
+python print_roofline.py --project-dir matrix_advisor-2-4-8192x8192
 ```
 
