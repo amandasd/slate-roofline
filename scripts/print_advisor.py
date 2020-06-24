@@ -7,7 +7,7 @@ import argparse
 ################################################################################
 # Usage:
 ################################################################################
-# usage: print_roofline.py [-h] -p PROJECT_DIR 
+# usage: print_advisor.py [-h] -p PROJECT_DIR 
 #
 #optional arguments:
 #  -h, --help            show this help message and exit
@@ -17,7 +17,7 @@ import argparse
 #
 # Example:
 #
-#    python print_roofline.py -p matrix_advisor-2-4-8192x8192
+#    python print_advisor.py -p matrix_advisor-2-4-8192x8192
 ################################################################################
 
 # Add advisor dir to sys.path
