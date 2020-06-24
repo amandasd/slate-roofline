@@ -17,7 +17,7 @@ import argparse
 #
 # Example:
 #
-#    python scripts/print_roofline.py -p $SCRATCH/project/aries-roofline/matrix-add/outputs/matrix_advisor-1-16-512x8192/
+#    python scripts/print_roofline.py -p matrix_advisor-2-4-8192x8192
 ################################################################################
 
 # Add advisor dir to sys.path
