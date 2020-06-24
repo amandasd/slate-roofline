@@ -89,7 +89,6 @@ then
 else
    ./matrix_add_advisor 8192 8192
 fi
-
 ```
 
 ### Printing Roofline data
