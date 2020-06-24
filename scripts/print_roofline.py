@@ -17,7 +17,7 @@ import argparse
 #
 # Example:
 #
-#    python scripts/print_roofline.py -p matrix_advisor-2-4-8192x8192
+#    python print_roofline.py -p matrix_advisor-2-4-8192x8192
 ################################################################################
 
 # Add advisor dir to sys.path
