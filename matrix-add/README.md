@@ -1,4 +1,4 @@
-### Modules
+## Modules
 
 ```
 module load papi
@@ -6,7 +6,7 @@ module load papi
 
 You may also need to unload the darshan module.
 
-### Environment variables
+## Environment variables
 
  ```
 export OMP_NUM_THREADS=1
@@ -14,21 +14,21 @@ export OMP_NUM_THREADS=1
 PAT_RT_PERFCTR_FILE=configurable_counters
 ```
 
-### AriesNCL
+## AriesNCL
 
 ```
 cd lib/AriesNCL/src
 make
 ```
 
-### Matrix Addition
+## Matrix Addition
 
 ```
 cd matrix-add
 make
 ```
 
-### Example on Cori to obtain the AriesNCL data
+## Example on Cori to obtain the AriesNCL data
 
 ```
 salloc --qos=interactive -C haswell --time=60 --nodes=8
@@ -55,7 +55,7 @@ cd matrix-add
 python ../scripts/print_counters.py -N 8 -f matrix_add_aries-8-8192-32.counters.0.bin
 ```
 
-### Example on Cori to obtain the Roofline data
+## Example on Cori to obtain the Roofline data
 
 ```
 module load advisor
