@@ -48,6 +48,12 @@ number of nodes: 8
 
 number of MPI ranks per node: 32
 
+### Printing AriesNCL data
+
+```
+python ../scripts/print_counters.py -N 8 -f matrix_add_aries-8-8192-32.counters.0.bin
+```
+
 ### Example on Cori to obtain the Roofline data
 
 ```
