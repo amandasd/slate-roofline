@@ -51,6 +51,7 @@ number of MPI ranks per node: 32
 ### Printing AriesNCL data
 
 ```
+cd matrix-add
 python ../scripts/print_counters.py -N 8 -f matrix_add_aries-8-8192-32.counters.0.bin
 ```
 
