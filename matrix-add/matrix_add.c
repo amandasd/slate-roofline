@@ -145,6 +145,10 @@ int main(int argc, char **argv)
   //}
 #endif
 
+  MPI_Datatype rowtype;
+  MPI_Type_contiguous(ncol, MPI_FLOAT, &rowtype);
+  MPI_Type_commit(&rowtype);
+
   MPI_Status recv_status;
   int niter = 100;
 
@@ -153,18 +157,23 @@ int main(int argc, char **argv)
   MPI_Barrier(MPI_COMM_WORLD);
 #endif
 
+#ifdef PROFILING
+  double t_start = 0.0, t_end = 0.0, t = 0.0;
+  t_start = MPI_Wtime();
+#endif
+
   for(int i = 0; i < niter; i++) {
      if(rank == 0) {
 	if(size > 1) {
            for(int r = 1; r < size; r++) { 
-              MPI_Send(matrix_A+r*(nlin/size)*ncol,(nlin/size)*ncol,MPI_FLOAT,r,r,MPI_COMM_WORLD);
-              MPI_Send(matrix_B+r*(nlin/size)*ncol,(nlin/size)*ncol,MPI_FLOAT,r,size+r,MPI_COMM_WORLD);
+              MPI_Send(matrix_A+r*(nlin/size)*ncol,(nlin/size),rowtype,r,r,MPI_COMM_WORLD);
+              MPI_Send(matrix_B+r*(nlin/size)*ncol,(nlin/size),rowtype,r,size+r,MPI_COMM_WORLD);
            }
 	}
      }
      else {
-        MPI_Recv(vec_A,(nlin/size)*ncol,MPI_FLOAT,0,rank,MPI_COMM_WORLD,&recv_status);
-        MPI_Recv(vec_B,(nlin/size)*ncol,MPI_FLOAT,0,size+rank,MPI_COMM_WORLD,&recv_status);
+        MPI_Recv(vec_A,(nlin/size),rowtype,0,rank,MPI_COMM_WORLD,&recv_status);
+        MPI_Recv(vec_B,(nlin/size),rowtype,0,size+rank,MPI_COMM_WORLD,&recv_status);
      }
      if(rank == 0) {
         if(matrix_vt_add((nlin/size)*ncol,matrix_A,matrix_B,matrix_A)) {
@@ -181,24 +190,29 @@ int main(int argc, char **argv)
      if(rank == 0) {
 	if(size > 1) {
            for(int r = 1; r < size; r++) { 
-              MPI_Recv(matrix_A+r*(nlin/size)*ncol,(nlin/size)*ncol,MPI_FLOAT,r,2*size+r,MPI_COMM_WORLD,&recv_status);
+              MPI_Recv(matrix_A+r*(nlin/size)*ncol,(nlin/size),rowtype,r,2*size+r,MPI_COMM_WORLD,&recv_status);
            }
 	}
      }
      else {
-        MPI_Send(vec_A,(nlin/size)*ncol,MPI_FLOAT,0,2*size+rank,MPI_COMM_WORLD);
+        MPI_Send(vec_A,(nlin/size),rowtype,0,2*size+rank,MPI_COMM_WORLD);
      }
   }
 
-  //MPI_Scatter(matrix_A,(nlin/size)*ncol,MPI_FLOAT,vec_A,(nlin/size)*ncol,MPI_FLOAT,0,MPI_COMM_WORLD);
-  //MPI_Scatter(matrix_B,(nlin/size)*ncol,MPI_FLOAT,vec_B,(nlin/size)*ncol,MPI_FLOAT,0,MPI_COMM_WORLD);
+  //MPI_Scatter(matrix_A,(nlin/size),rowtype,vec_A,(nlin/size),rowtype,0,MPI_COMM_WORLD);
+  //MPI_Scatter(matrix_B,(nlin/size),rowtype,vec_B,(nlin/size),rowtype,0,MPI_COMM_WORLD);
   //for(int i = 0; i < niter; i++) {
   //   if(matrix_vt_add((nlin/size)*ncol,vec_A,vec_B,vec_A)) {
   //      fprintf(stderr,"Rank %d: Error in addition operation.\n",rank);
   //      return 1;
   //   }
-  //   MPI_Gather(vec_A,(nlin/size)*ncol,MPI_FLOAT,matrix_A,(nlin/size)*ncol,MPI_FLOAT,0,MPI_COMM_WORLD);
+  //   MPI_Gather(vec_A,(nlin/size),rowtype,matrix_A,(nlin/size),rowtype,0,MPI_COMM_WORLD);
   //}
+
+#ifdef PROFILING
+  t_end = MPI_Wtime();
+  t = t_end - t_start;
+#endif
 
 #ifdef ARIES
   MPI_Barrier(MPI_COMM_WORLD);
@@ -213,15 +227,22 @@ int main(int argc, char **argv)
        for(int j=0; j < ncol; j++)
          sum = sum + matrix_A[j+i*ncol];
      fprintf(stderr,"Sum of all elements of the matrix: %lf\n",sum);
+     fprintf(stderr,"Time: %lf\n",t);
      //matrix_vt_print(nlin,ncol,matrix_A);
   }
 #endif
+
+  if(rank == 0) {
+     fprintf(stderr,"Matrix[0][1]: %.3f\n",matrix_A[1]);
+     fprintf(stderr,"Matrix[nlin-1][ncol-2]: %.3f\n",matrix_A[(ncol-2)+(nlin-1)*ncol]);
+  }
 
   if(rank == 0) {
      free(matrix_A);
      free(matrix_B);
   }
 
+  MPI_Type_free(&rowtype);
   free(vec_A);
   free(vec_B);
 
