@@ -11,10 +11,10 @@ module load cgpu gcc cuda openmpi/4.0.3
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/global/common/software/m1759/papi/papi-6.0.0/lib
 ```
 
-## PAPI example code on Cori GPU
+## PAPI infiniband counters on Cori GPU
 
 ```
-cd papi-example-gpu
+cd papi-ib-example-gpu
 make
 
 salloc -C gpu -N 2 -n 80 -t 15 -A m1759 --exclusive -q special
