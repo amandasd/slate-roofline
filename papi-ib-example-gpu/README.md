@@ -17,7 +17,7 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/global/common/software/m1759/papi/papi-
 cd papi-ib-example-gpu
 make
 
-salloc -C gpu -N 2 -n 80 -t 15 -A m1759 --exclusive -q special
+salloc -C gpu -N 2 -t 15 -A m1759 --exclusive -q special
 
 srun -N 2 -n 80 -c 1 --cpu_bind=cores ./papi_example 2&> output 
 ```
