@@ -96,7 +96,6 @@ int main(int argc, char **argv)
       r = PAPI_enum_cmp_event(&code, PAPI_ENUM_EVENTS, IB_ID);
    }
 
-   int count;
    MPI_Status recv_status;
 
    int niter = 10;
