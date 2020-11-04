@@ -2,7 +2,7 @@
 
 ```
 module purge
-module load cgpu gcc cuda openmpi/4.0.3
+module load cgpu gcc/8.3.0 cuda/11.0.3 openmpi/4.0.3
 ```
 
 ## Environment variables
