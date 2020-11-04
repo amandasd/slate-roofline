@@ -15,6 +15,11 @@ int main(int argc, char **argv)
    char description[500][500];
    long long values[500]; 
 
+   int numprocs, myid;
+   MPI_Init(&argc, &argv);
+   MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
+   MPI_Comm_rank(MPI_COMM_WORLD, &myid);
+
    /* Set TESTS_QUIET variable */
    tests_quiet( argc, argv );
 
@@ -59,20 +64,7 @@ int main(int argc, char **argv)
        test_skip(__FILE__,__LINE__,"No infiniband events found", 0);
    }
 
-   int numprocs, myid;
-   MPI_Init(&argc, &argv);
-   MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
-   MPI_Comm_rank(MPI_COMM_WORLD, &myid);
-
-   int size;
-   if (argc < 2)
-   {       
-      size = 10000*numprocs;
-   }
-   else
-   {
-      size = atoi(argv[1]);
-   }
+   int size = 10000*numprocs;
 
    float inmsg[size/numprocs], outmsg[size];
    for(int i = 0; i < size; i++) { outmsg[i] = 1.; }
@@ -111,12 +103,15 @@ int main(int argc, char **argv)
    for(int i = 0; i < niter; i++) {
       MPI_Scatter(outmsg,size/numprocs,MPI_FLOAT,inmsg,size/numprocs,MPI_FLOAT,0,MPI_COMM_WORLD);
       MPI_Gather(inmsg,size/numprocs,MPI_FLOAT,outmsg,size/numprocs,MPI_FLOAT,0,MPI_COMM_WORLD);
+      //MPI_Bcast(outmsg, size, MPI_FLOAT, 0, MPI_COMM_WORLD);
    }
    MPI_Barrier(MPI_COMM_WORLD);
 
+   //PAPI_read(eventSet, values);
+
    PAPI_stop(eventSet, values);
    //PAPI_reset(eventSet);
-   PAPI_destroy_eventset(&eventSet);
+   //PAPI_destroy_eventset(&eventSet);
    //PAPI_shutdown();
 
    // print description of each event
@@ -128,7 +123,7 @@ int main(int argc, char **argv)
        for (eventX = 0; eventX < eventNum; eventX++) {
            //printf("\tEvent --> %d/%d> %s --> ", eventX, eventNum, eventNames[eventX]);
            //printf("%lld --> %s\n", values[eventX], description[eventX]);
-           printf("Rank(%d): %lld --> %s --> %s\n", myid, values[eventX], eventNames[eventX], description[eventX]);
+           printf("Rank(%d) Size(%d): %lld --> %s --> %s\n", myid, size, values[eventX], eventNames[eventX], description[eventX]);
        }
    }
 
