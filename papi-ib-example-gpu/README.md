@@ -19,5 +19,10 @@ make
 
 salloc -C gpu -N 2 -t 15 -A m1759 --exclusive -q special
 
-srun -N 2 -n 80 -c 1 --cpu_bind=cores ./papi_example 2&> output 
+srun -N 2 -n 2 -c 1 --cpu_bind=cores ./papi_example 2&> output 
+
+cat output | grep 'mlx5_0_1:port_xmit_data\|mlx5_2_1:port_xmit_data\|mlx5_4_1:port_xmit_data\|mlx5_6_1:port_xmit_data' | grep "Rank: 0"
+cat output | grep 'mlx5_0_1:port_xmit_data\|mlx5_2_1:port_xmit_data\|mlx5_4_1:port_xmit_data\|mlx5_6_1:port_xmit_data' | grep "Rank: 1"
+cat output | grep 'mlx5_0_1:port_rcv_data\|mlx5_2_1:port_rcv_data\|mlx5_4_1:port_rcv_data\|mlx5_6_1:port_rcv_data' | grep "Rank: 0"
+cat output | grep 'mlx5_0_1:port_rcv_data\|mlx5_2_1:port_rcv_data\|mlx5_4_1:port_rcv_data\|mlx5_6_1:port_rcv_data' | grep "Rank: 1"
 ```
