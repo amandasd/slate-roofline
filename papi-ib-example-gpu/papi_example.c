@@ -116,10 +116,10 @@ int main(int argc, char **argv)
       MPI_Recv(&inmsg, size, MPI_FLOAT, 1, 100, MPI_COMM_WORLD, &recv_status);
    }
    else if(myid == 1) {
-      MPI_Send(&outmsg, size, MPI_FLOAT, 0, 100, MPI_COMM_WORLD);
       for( int i = 0; i < niter; i++) {
          MPI_Recv(&inmsg, size, MPI_FLOAT, 0, i, MPI_COMM_WORLD, &recv_status);
       }
+      MPI_Send(&outmsg, size, MPI_FLOAT, 0, 100, MPI_COMM_WORLD);
    }
    MPI_Barrier(MPI_COMM_WORLD);
 
