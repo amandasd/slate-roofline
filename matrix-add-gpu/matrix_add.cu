@@ -62,7 +62,6 @@ else
    nlin = atoi(argv[1]);
    ncol = atoi(argv[2]);
 }
-//fprintf(stderr,"nlin(%d) ncol(%d)\n",nlin,ncol);
 
 int nodes, cpn;
 if (argc < 5)
@@ -85,7 +84,6 @@ int  size, rank;
 MPI_Init(&argc, &argv);
 MPI_Comm_size(MPI_COMM_WORLD, &size);
 MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-//fprintf(stderr,"Rank(%d) Size(%d)\n",rank,size);
 
 if(rank == 0) {
    matrix_A = (float*)malloc(nlin*ncol*sizeof(float));
@@ -167,7 +165,6 @@ else
 }
 // Number of blocks; number max is 65535
 nblocks = (int)ceil((float)((nlin/size)*ncol)/blockSize);
-//fprintf(stderr,"blockSize(%d) nblocks(%d)\n",blockSize,nblocks);
 if(nblocks > 65535)
 {
    fprintf(stderr,"Number of blocks is higher than 65535!\n");
@@ -216,11 +213,9 @@ for(int id=0; id<nodes; id++) {
       long long xmit = 0, rcv = 0;
       for(int i = 0; i < event_count; i++) {
 	 if(strstr(events[i],"xmit")) {
-            //printf("xmit... %s: %lld\n", events[i], values[i]);
 	    xmit = xmit + values[i];
 	 }
 	 else if(strstr(events[i],"rcv")) {
-            //printf("rcv... %s: %lld\n", events[i], values[i]);
 	    rcv = rcv + values[i];
 	 }
       }
