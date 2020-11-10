@@ -42,7 +42,7 @@ void matrix_vt_print(int nlin, int ncol, float *m)
 int main(int argc, char **argv) {
 
 int event_set = PAPI_NULL;
-int event_count = 32;
+int event_count = 8;
 long long values[event_count]; 
 const char *events[] = {
                  "infiniband:::mlx5_0_1:port_xmit_data",
@@ -52,31 +52,7 @@ const char *events[] = {
                  "infiniband:::mlx5_4_1:port_xmit_data",
 		 "infiniband:::mlx5_4_1:port_rcv_data",
                  "infiniband:::mlx5_6_1:port_xmit_data",
-		 "infiniband:::mlx5_6_1:port_rcv_data",
-                 "infiniband:::mlx5_0_1:port_rcv_remote_physical_errors",
-                 "infiniband:::mlx5_0_1:port_rcv_errors",
-                 "infiniband:::mlx5_0_1:multicast_rcv_packets",
-                 "infiniband:::mlx5_0_1:unicast_rcv_packets",
-                 "infiniband:::mlx5_0_1:port_rcv_wait",
-                 "infiniband:::mlx5_0_1:port_rcv_packet",
-                 "infiniband:::mlx5_2_1:port_rcv_remote_physical_errors",
-                 "infiniband:::mlx5_2_1:port_rcv_errors",
-                 "infiniband:::mlx5_2_1:multicast_rcv_packets",
-                 "infiniband:::mlx5_2_1:unicast_rcv_packets",
-                 "infiniband:::mlx5_2_1:port_rcv_wait",
-                 "infiniband:::mlx5_2_1:port_rcv_packet",
-                 "infiniband:::mlx5_4_1:port_rcv_remote_physical_errors",
-                 "infiniband:::mlx5_4_1:port_rcv_errors",
-                 "infiniband:::mlx5_4_1:multicast_rcv_packets",
-                 "infiniband:::mlx5_4_1:unicast_rcv_packets",
-                 "infiniband:::mlx5_4_1:port_rcv_wait",
-                 "infiniband:::mlx5_4_1:port_rcv_packet",
-                 "infiniband:::mlx5_6_1:port_rcv_remote_physical_errors",
-                 "infiniband:::mlx5_6_1:port_rcv_errors",
-                 "infiniband:::mlx5_6_1:multicast_rcv_packets",
-                 "infiniband:::mlx5_6_1:unicast_rcv_packets",
-                 "infiniband:::mlx5_6_1:port_rcv_wait",
-                 "infiniband:::mlx5_6_1:port_rcv_packet"
+		 "infiniband:::mlx5_6_1:port_rcv_data"
 		 };
 
 int  nlin, ncol;
@@ -245,16 +221,16 @@ for(int id=0; id<nodes; id++) {
       long long xmit = 0, rcv = 0;
       for(int i = 0; i < event_count; i++) {
 	 if(strstr(events[i],"xmit")) {
-            printf("xmit... %s: %lld\n", events[i], values[i]);
+            //printf("xmit... %s: %lld\n", events[i], values[i]);
 	    xmit = xmit + values[i];
 	 }
 	 else if(strstr(events[i],"rcv")) {
-            printf("rcv... %s: %lld\n", events[i], values[i]);
+            //printf("rcv... %s: %lld\n", events[i], values[i]);
 	    rcv = rcv + values[i];
 	 }
       }
-      //printf("node %d -> %lld sent bytes\n", id, xmit);
-      //printf("node %d -> %lld received bytes\n", id, rcv);
+      printf("node %d -> %lld sent bytes\n", id, xmit);
+      printf("node %d -> %lld received bytes\n", id, rcv);
    }
 }
 
