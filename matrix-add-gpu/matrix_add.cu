@@ -7,17 +7,13 @@
 #include <cuda_runtime.h>
 #include <papi.h>
 
-__global__ void MatAdd(float *A, float *B, float *C, int n, int taskperItem){
+__global__ void MatAdd(float *A, float *B, float *C, int n)
+{
   // Get our global thread ID
-  //int i = blockIdx.x*blockDim.x+threadIdx.x;
-  int global_id = blockIdx.x*blockDim.x*taskperItem+threadIdx.x;
-  for(int t = 0;t < taskperItem; t++)
-  {
-    int i = t * blockDim.x + global_id;
-    // Make sure we do not go out of bounds
-    if(i < n)
-       C[i] = A[i] + B[i];
-  }
+  int i = blockIdx.x*blockDim.x+threadIdx.x;
+  // Make sure we do not go out of bounds
+  if(i < n)
+     C[i] = A[i] + B[i];
 }
 
 int matrix_vt_create(int nlin, int ncol, float *m)
@@ -159,8 +155,7 @@ MPI_Type_commit(&rowtype);
 //MPI_Status recv_status;
 int niter = 1;
 
-int nblocks, blockSize, taskperItem;
-taskperItem = 1;
+int nblocks, blockSize;
 // Number of threads in each block
 if(argc < 6)
 {       
@@ -198,7 +193,7 @@ for(int i = 0; i < niter; i++) {
    cudaMemcpy(pB, vec_B, ((nlin/size)*ncol)*sizeof(float), cudaMemcpyHostToDevice);
  
    //Execute the kernel
-   MatAdd<<<nblocks, blockSize/taskperItem>>>(pA, pB, pC, (nlin/size)*ncol, taskperItem);
+   MatAdd<<<nblocks, blockSize>>>(pA, pB, pC, (nlin/size)*ncol);
    
    //Copy array back to host
    cudaMemcpy(vec_C, pC, ((nlin/size)*ncol)*sizeof(float), cudaMemcpyDeviceToHost);
