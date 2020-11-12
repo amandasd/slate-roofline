@@ -171,6 +171,8 @@ if(nblocks > 65535)
    //return 0;
 }
 
+MPI_Status recv_status;
+
 #ifdef PROFILING
 double t_start = 0.0, t_end = 0.0, t = 0.0;
 t_start = MPI_Wtime();
@@ -182,8 +184,22 @@ PAPI_start(event_set);
 MPI_Barrier(MPI_COMM_WORLD);
 for(int i = 0; i < niter; i++) {
    //Initialize vectors on host
-   MPI_Scatter(matrix_A,(nlin/size),rowtype,vec_A,(nlin/size),rowtype,0,MPI_COMM_WORLD);
-   MPI_Scatter(matrix_B,(nlin/size),rowtype,vec_B,(nlin/size),rowtype,0,MPI_COMM_WORLD);
+   if(rank == 0) {
+      for(int r = 1; r < nodes*cpn; r++) {
+         MPI_Send(matrix_A+r*(nlin/size)*ncol, (nlin/size), rowtype, r, r+100, MPI_COMM_WORLD);
+         MPI_Send(matrix_B+r*(nlin/size)*ncol, (nlin/size), rowtype, r, r+200, MPI_COMM_WORLD);
+      }
+      for(int j = 0; j < (nlin/size)*ncol; j++) {
+	 vec_A[j] = matrix_A[j];
+	 vec_B[j] = matrix_B[j];
+      }
+   } 
+   else {
+      MPI_Recv(vec_A,(nlin/size),rowtype,0,rank+100,MPI_COMM_WORLD,&recv_status);
+      MPI_Recv(vec_B,(nlin/size),rowtype,0,rank+200,MPI_COMM_WORLD,&recv_status);
+   }
+   //MPI_Scatter(matrix_A,(nlin/size),rowtype,vec_A,(nlin/size),rowtype,0,MPI_COMM_WORLD);
+   //MPI_Scatter(matrix_B,(nlin/size),rowtype,vec_B,(nlin/size),rowtype,0,MPI_COMM_WORLD);
   
    //Copy host vectors to device
    cudaMemcpy(pA, vec_A, ((nlin/size)*ncol)*sizeof(float), cudaMemcpyHostToDevice);
@@ -194,13 +210,25 @@ for(int i = 0; i < niter; i++) {
    
    //Copy array back to host
    cudaMemcpy(vec_C, pC, ((nlin/size)*ncol)*sizeof(float), cudaMemcpyDeviceToHost);
-   
-   MPI_Gather(vec_C,(nlin/size),rowtype,matrix_A,(nlin/size),rowtype,0,MPI_COMM_WORLD);
+
+   if(rank == 0) {
+      for(int r = 1; r < nodes*cpn; r++) {
+         MPI_Recv(matrix_A+r*(nlin/size)*ncol,(nlin/size),rowtype,r,r+300,MPI_COMM_WORLD,&recv_status);
+      }
+      for(int j = 0; j < (nlin/size)*ncol; j++) {
+	 matrix_A[j] = vec_C[j];
+      }
+   } 
+   else {
+      MPI_Send(vec_C, (nlin/size), rowtype, 0, rank+300, MPI_COMM_WORLD);
+   }
+   //MPI_Gather(vec_C,(nlin/size),rowtype,matrix_A,(nlin/size),rowtype,0,MPI_COMM_WORLD);
 }
 MPI_Barrier(MPI_COMM_WORLD);
 
 PAPI_stop(event_set, values);
-PAPI_reset(event_set);
+MPI_Barrier(MPI_COMM_WORLD);
+//PAPI_reset(event_set);
 
 #ifdef PROFILING
 t_end = MPI_Wtime();
@@ -221,6 +249,8 @@ for(int id=0; id<nodes; id++) {
       }
       printf("node %d -> %lld sent bytes\n", id, xmit);
       printf("node %d -> %lld received bytes\n", id, rcv);
+      //printf("rank %d -> %lld sent bytes\n", rank, xmit);
+      //printf("rank %d -> %lld received bytes\n", rank, rcv);
    }
 }
 
