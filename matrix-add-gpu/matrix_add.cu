@@ -5,8 +5,11 @@
 #include <mpi.h>
 #include <cuda.h>
 #include <cuda_runtime.h>
+#include <sys/time.h>   // for gettimeofday()
+#ifdef PAPI
 #include <papi.h>
-
+#endif
+ 
 __global__ void MatAdd(float *A, float *B, float *C, int n)
 {
   // Get our global thread ID
@@ -16,11 +19,11 @@ __global__ void MatAdd(float *A, float *B, float *C, int n)
      C[i] = A[i] + B[i];
 }
 
-int matrix_vt_create(int nlin, int ncol, float *m)
+int matrix_vt_create(int nlin, int ncol, float *m, int rank)
 {
   for(int i=0; i < nlin; i++)
     for(int j=0; j < ncol; j++)
-      m[j+i*ncol] = i + j*2;
+      m[j+i*ncol] = i+(nlin*rank) + j*2;
   return 0;
 }
 
@@ -37,19 +40,21 @@ void matrix_vt_print(int nlin, int ncol, float *m)
 
 int main(int argc, char **argv) {
 
+#ifdef PAPI
 int event_set = PAPI_NULL;
 int event_count = 8;
 long long values[event_count]; 
 const char *events[] = {
-                 "infiniband:::mlx5_0_1:port_xmit_data",
-		 "infiniband:::mlx5_0_1:port_rcv_data",
-                 "infiniband:::mlx5_2_1:port_xmit_data",
-		 "infiniband:::mlx5_2_1:port_rcv_data",
-                 "infiniband:::mlx5_4_1:port_xmit_data",
-		 "infiniband:::mlx5_4_1:port_rcv_data",
-                 "infiniband:::mlx5_6_1:port_xmit_data",
-		 "infiniband:::mlx5_6_1:port_rcv_data"
+                 "infiniband:::mlx5_0_1_ext:port_xmit_data",
+		 "infiniband:::mlx5_0_1_ext:port_rcv_data",
+                 "infiniband:::mlx5_2_1_ext:port_xmit_data",
+		 "infiniband:::mlx5_2_1_ext:port_rcv_data",
+                 "infiniband:::mlx5_4_1_ext:port_xmit_data",
+		 "infiniband:::mlx5_4_1_ext:port_rcv_data",
+                 "infiniband:::mlx5_6_1_ext:port_xmit_data",
+		 "infiniband:::mlx5_6_1_ext:port_rcv_data"
 		 };
+#endif
 
 int  nlin, ncol;
 if (argc < 3)
@@ -62,7 +67,9 @@ else
    nlin = atoi(argv[1]);
    ncol = atoi(argv[2]);
 }
+//fprintf(stderr,"nlin(%d) ncol(%d)\n",nlin,ncol);
 
+#ifdef PAPI
 int nodes, cpn;
 if (argc < 5)
 {       
@@ -76,60 +83,67 @@ else
    nodes = atoi(argv[3]);
    cpn = atoi(argv[4]);
 }
+#endif
  
-float *matrix_A, 
-      *matrix_B;
-
 int  size, rank;
 MPI_Init(&argc, &argv);
 MPI_Comm_size(MPI_COMM_WORLD, &size);
 MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+//fprintf(stderr,"Rank(%d) Size(%d)\n",rank,size);
 
-if(rank == 0) {
-   matrix_A = (float*)malloc(nlin*ncol*sizeof(float));
-   if(matrix_A == NULL) {
-      fprintf(stderr,"Error in Matrix A allocation.\n");
-      return 1; 
-   }
-   if(matrix_vt_create(nlin,ncol,matrix_A)) {
-      fprintf(stderr,"Error in Matrix A creation.\n");
-      return 1; 
-   }
-
-   matrix_B = (float*)malloc(nlin*ncol*sizeof(float));
-   if(matrix_B == NULL) {
-      fprintf(stderr,"Error in Matrix B allocation.\n");
-      return 1;
-   }
-   if(matrix_vt_create(nlin,ncol,matrix_B)) {
-      fprintf(stderr,"Error in Matrix B creation.\n");
-      return 1; 
-   }
-}
-else {
-   matrix_A = NULL;
-   matrix_B = NULL;
+float *matrix_C = (float*)malloc(nlin*ncol*sizeof(float));
+if(matrix_C == NULL) {
+   fprintf(stderr,"Error in Matrix A allocation.\n");
+   return 1; 
 }
 
 //Host input and output vectors
 //Allocate memory for each vector on host
-float *vec_A = (float*)malloc((nlin/size)*ncol*sizeof(float));
+float *vec_A, *vec_B, *vec_C;
+#ifdef PINNED
+cudaError_t status = cudaMallocHost((void**)&vec_A,(nlin/size)*ncol*sizeof(float));
+if (status != cudaSuccess) {
+   fprintf(stderr,"Error in pinned vector A allocation.\n");
+   return 1;
+}
+status = cudaMallocHost((void**)&vec_B,(nlin/size)*ncol*sizeof(float));
+if (status != cudaSuccess) {
+   fprintf(stderr,"Error in pinned vector B allocation.\n");
+   return 1;
+}
+status = cudaMallocHost((void**)&vec_C,(nlin/size)*ncol*sizeof(float));
+if (status != cudaSuccess) {
+   fprintf(stderr,"Error in pinned vector C allocation.\n");
+   return 1;
+}
+#else
+vec_A = (float*)malloc((nlin/size)*ncol*sizeof(float));
 if(vec_A == NULL) {
    fprintf(stderr,"Error in vector A allocation.\n");
    return 1;
 }
-float *vec_B = (float*)malloc((nlin/size)*ncol*sizeof(float));
+vec_B = (float*)malloc((nlin/size)*ncol*sizeof(float));
 if(vec_B == NULL) {
    fprintf(stderr,"Error in vector B allocation.\n");
    return 1;
 }
-float *vec_C = (float*)malloc((nlin/size)*ncol*sizeof(float));
+vec_C = (float*)malloc((nlin/size)*ncol*sizeof(float));
 if(vec_C == NULL) {
    fprintf(stderr,"Error in vector C allocation.\n");
    return 1;
 }
+#endif
 
-// Initialize PAPI
+if(matrix_vt_create(nlin/size,ncol,vec_A,rank)) {
+   fprintf(stderr,"Error in vector A creation.\n");
+   return 1; 
+}
+if(matrix_vt_create(nlin/size,ncol,vec_B,rank)) {
+   fprintf(stderr,"Error in vector B creation.\n");
+   return 1; 
+}
+
+#ifdef PAPI
 PAPI_library_init(PAPI_VER_CURRENT);
 PAPI_create_eventset(&event_set);
 int code = 0;
@@ -138,6 +152,7 @@ for (int i = 0; i < event_count; i++)
    PAPI_event_name_to_code(events[i], &code);
    PAPI_add_event(event_set, code);
 }
+#endif
 
 //Device input and output vectors
 float *pA, *pB, *pC;
@@ -151,7 +166,7 @@ MPI_Type_contiguous(ncol, MPI_FLOAT, &rowtype);
 MPI_Type_commit(&rowtype);
 
 //MPI_Status recv_status;
-int niter = 1;
+int niter = 100;
 
 int nblocks, blockSize;
 // Number of threads in each block
@@ -165,76 +180,65 @@ else
 }
 // Number of blocks; number max is 65535
 nblocks = (int)ceil((float)((nlin/size)*ncol)/blockSize);
+//fprintf(stderr,"blockSize(%d) nblocks(%d)\n",blockSize,nblocks);
 if(nblocks > 65535)
 {
    fprintf(stderr,"Number of blocks is higher than 65535!\n");
    //return 0;
 }
 
-MPI_Status recv_status;
-
 #ifdef PROFILING
-double t_start = 0.0, t_end = 0.0, t = 0.0;
-t_start = MPI_Wtime();
+//double t_start = 0.0, t_end = 0.0, t = 0.0;
+//t_start = MPI_Wtime();
+double t;
+struct timeval start, end;
+gettimeofday(&start, NULL);
 #endif
 
-//StartRecordAriesCounters
+#ifdef PAPI
 PAPI_start(event_set);
-
 MPI_Barrier(MPI_COMM_WORLD);
-for(int i = 0; i < niter; i++) {
-   //Initialize vectors on host
-   if(rank == 0) {
-      for(int r = 1; r < nodes*cpn; r++) {
-         MPI_Send(matrix_A+r*(nlin/size)*ncol, (nlin/size), rowtype, r, r+100, MPI_COMM_WORLD);
-         MPI_Send(matrix_B+r*(nlin/size)*ncol, (nlin/size), rowtype, r, r+200, MPI_COMM_WORLD);
-      }
-      for(int j = 0; j < (nlin/size)*ncol; j++) {
-	 vec_A[j] = matrix_A[j];
-	 vec_B[j] = matrix_B[j];
-      }
-   } 
-   else {
-      MPI_Recv(vec_A,(nlin/size),rowtype,0,rank+100,MPI_COMM_WORLD,&recv_status);
-      MPI_Recv(vec_B,(nlin/size),rowtype,0,rank+200,MPI_COMM_WORLD,&recv_status);
-   }
-   //MPI_Scatter(matrix_A,(nlin/size),rowtype,vec_A,(nlin/size),rowtype,0,MPI_COMM_WORLD);
-   //MPI_Scatter(matrix_B,(nlin/size),rowtype,vec_B,(nlin/size),rowtype,0,MPI_COMM_WORLD);
-  
-   //Copy host vectors to device
-   cudaMemcpy(pA, vec_A, ((nlin/size)*ncol)*sizeof(float), cudaMemcpyHostToDevice);
-   cudaMemcpy(pB, vec_B, ((nlin/size)*ncol)*sizeof(float), cudaMemcpyHostToDevice);
+#endif
+
+//Copy host vectors to device
+cudaMemcpy(pA, vec_A, ((nlin/size)*ncol)*sizeof(float), cudaMemcpyHostToDevice);
+cudaMemcpy(pB, vec_B, ((nlin/size)*ncol)*sizeof(float), cudaMemcpyHostToDevice);
  
+for(int i = 0; i < niter; i++) {
    //Execute the kernel
    MatAdd<<<nblocks, blockSize>>>(pA, pB, pC, (nlin/size)*ncol);
-   
-   //Copy array back to host
-   cudaMemcpy(vec_C, pC, ((nlin/size)*ncol)*sizeof(float), cudaMemcpyDeviceToHost);
-
-   if(rank == 0) {
-      for(int r = 1; r < nodes*cpn; r++) {
-         MPI_Recv(matrix_A+r*(nlin/size)*ncol,(nlin/size),rowtype,r,r+300,MPI_COMM_WORLD,&recv_status);
-      }
-      for(int j = 0; j < (nlin/size)*ncol; j++) {
-	 matrix_A[j] = vec_C[j];
-      }
-   } 
-   else {
-      MPI_Send(vec_C, (nlin/size), rowtype, 0, rank+300, MPI_COMM_WORLD);
-   }
-   //MPI_Gather(vec_C,(nlin/size),rowtype,matrix_A,(nlin/size),rowtype,0,MPI_COMM_WORLD);
 }
-MPI_Barrier(MPI_COMM_WORLD);
 
+//Copy array back to host
+cudaMemcpy(vec_C, pC, ((nlin/size)*ncol)*sizeof(float), cudaMemcpyDeviceToHost);
+
+//MPI_Status recv_status;
+//MPI_Request send_status;
+//for(int r = 0; r < size; r++) {
+//   if(r != rank) {
+//      MPI_Isend(vec_C,(nlin/size),rowtype,r,rank*100+r,MPI_COMM_WORLD,&send_status);
+//      MPI_Recv(matrix_C+r*(nlin/size)*ncol,(nlin/size),rowtype,r,r*100+rank,MPI_COMM_WORLD,&recv_status);
+//      MPI_Wait(&send_status, &recv_status);
+//   }
+//}
+//for(int j = rank*(nlin/size)*ncol; j < (nlin/size)*ncol; j++) {
+//   matrix_C[j] = vec_C[j];
+//}
+MPI_Allgather(vec_C,(nlin/size),rowtype,matrix_C,(nlin/size),rowtype,MPI_COMM_WORLD);
+
+#ifdef PAPI
+MPI_Barrier(MPI_COMM_WORLD);
 PAPI_stop(event_set, values);
-MPI_Barrier(MPI_COMM_WORLD);
-//PAPI_reset(event_set);
-
-#ifdef PROFILING
-t_end = MPI_Wtime();
-t = t_end - t_start;
 #endif
 
+#ifdef PROFILING
+//t_end = MPI_Wtime();
+//t = t_end - t_start;
+gettimeofday(&end, NULL);
+t = ((((end.tv_sec - start.tv_sec) * 1000000) + end.tv_usec) - (start.tv_usec))/1000000.;
+#endif
+
+#ifdef PAPI
 for(int id=0; id<nodes; id++) {
    if(rank == id * cpn) {
       printf("\n");
@@ -249,49 +253,52 @@ for(int id=0; id<nodes; id++) {
       }
       printf("node %d -> %lld sent bytes\n", id, xmit);
       printf("node %d -> %lld received bytes\n", id, rcv);
-      //printf("rank %d -> %lld sent bytes\n", rank, xmit);
-      //printf("rank %d -> %lld received bytes\n", rank, rcv);
    }
 }
+#endif
 
 #ifdef PROFILING
 if(rank == 0) {
    long double sum = 0.;
    for(int i=0; i < nlin; i++)
      for(int j=0; j < ncol; j++)
-       sum = sum + matrix_A[j+i*ncol];
+       sum = sum + matrix_C[j+i*ncol];
    fprintf(stderr,"Sum of all elements of the matrix: %Lf\n",sum);
    fprintf(stderr,"Time: %lf\n",t);
-   //matrix_vt_print(nlin,ncol,matrix_A);
+   //matrix_vt_print(nlin,ncol,matrix_C);
 }
 #endif
 
 if(rank == 0) {
-   fprintf(stderr,"Matrix[0][1]: %.3f\n",matrix_A[1]);
-   fprintf(stderr,"Matrix[nlin-1][ncol-2]: %.3f\n",matrix_A[(ncol-2)+(nlin-1)*ncol]);
+   fprintf(stderr,"Matrix[0][1]: %.3f\n",matrix_C[1]);
+   fprintf(stderr,"Matrix[nlin-1][ncol-2]: %.3f\n",matrix_C[(ncol-2)+(nlin-1)*ncol]);
 }
 
 //Release host memory
-if(rank == 0) {
-   free(matrix_A);
-   free(matrix_B);
-}
+free(matrix_C);
 
 //Release host memory
 MPI_Type_free(&rowtype);
+#ifdef PINNED
+cudaFreeHost(vec_A);
+cudaFreeHost(vec_B);
+cudaFreeHost(vec_C);
+#else
 free(vec_A);
 free(vec_B);
 free(vec_C);
+#endif
 
 //Release device memory
 cudaFree(pA); 
 cudaFree(pB); 
 cudaFree(pC);
 
-// Cleanup papi
+#ifdef PAPI
 PAPI_cleanup_eventset(event_set);
 PAPI_destroy_eventset(&event_set);
 PAPI_shutdown();
+#endif
 
 MPI_Finalize();
  
