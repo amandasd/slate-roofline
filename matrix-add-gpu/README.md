@@ -25,7 +25,7 @@ make
 ```
 salloc -C gpu -N 2 -t 15 -A m1759 --exclusive -q special
 
-srun -N 2 -n 16 -G 16 -c 2 --cpu_bind=cores ./matrix_add 8192 8192 2 8
+srun -N 2 -n 16 -G 16 -c 2 --cpu_bind=cores ./matrix_add_papi 8192 8192 2 8
 
 number of nodes (N): 2 
 
