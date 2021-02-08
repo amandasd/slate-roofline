@@ -1,0 +1,32 @@
+
+# IDE files
+/CMakeLists.txt.user*
+/.vscode
+/.vs
+/*.nja
+settings.json
+*.swp
+.spack-env
+*.mod
+
+# Edit files
+*~
+._*
+
+# build directories
+/build*
+/install*
+
+# miscellaneous
+*timemory_output*
+
+# macOS Finder files
+.DS_Store
+
+# images
+/*.png
+/*.tif
+/*.tiff
+/*.jpeg
+/*.jpg
+/*.gif
