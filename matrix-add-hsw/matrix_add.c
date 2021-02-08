@@ -1,25 +1,25 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "mpi.h"
-
-#ifdef ARIES
-#include "AriesCounters.h"
+#include <math.h>
+#include <mpi.h>
+#ifdef PAPI
+#include <papi.h>
 #endif
-
-int matrix_vt_create(int nlin, int ncol, float *m)
-{
-  for(int i=0; i < nlin; i++)
-    for(int j=0; j < ncol; j++)
-      m[j+i*ncol] = i + j*2;
-  return 0;
-}
 
 int matrix_vt_add(int num, float *m, float *n, float *r)
 {
   for(int i=0; i < num; i++) {
     r[i] = m[i] + n[i];
   }
+  return 0;
+}
+
+int matrix_vt_create(int nlin, int ncol, float *m, int rank)
+{
+  for(int i=0; i < nlin; i++)
+    for(int j=0; j < ncol; j++)
+      m[j+i*ncol] = i + (nlin*rank) + j*2;
   return 0;
 }
 
@@ -34,218 +34,191 @@ void matrix_vt_print(int nlin, int ncol, float *m)
 }
 #endif
 
-int main(int argc, char **argv)
+int main(int argc, char **argv) {
+
+#ifdef PAPI
+int event_set = PAPI_NULL;
+int event_count = 5;
+long long values[event_count]; 
+const char *events[] = {"AR_NIC_ORB_PRF_REQ_BYTES_SENT", 
+                        "AR_NIC_ORB_PRF_RSP_BYTES_RCVD", 
+                        "AR_NIC_RAT_PRF_REQ_BYTES_RCVD",
+			"AR_NIC_RSPMON_NPT_EVENT_CNTR_NL_FLITS",
+			"AR_NIC_RSPMON_NPT_EVENT_CNTR_NL_PKTS"
+                       };
+#endif
+
+int  nlin, ncol;
+if (argc < 3)
+{       
+   nlin = 8;
+   ncol = 8;
+}
+else
 {
-  float *matrix_A, 
-        *matrix_B;
+   nlin = atoi(argv[1]);
+   ncol = atoi(argv[2]);
+}
+//fprintf(stderr,"nlin(%d) ncol(%d)\n",nlin,ncol);
 
-  int  size, rank;
-  int  nlin, ncol;
+#ifdef PAPI
+int nodes, cpn;
+if (argc < 5)
+{       
+   // Run the test on this many nodes.
+   nodes = 2;
+   // Run this many ranks per node in the test.
+   cpn = 40;
+}
+else
+{
+   nodes = atoi(argv[3]);
+   cpn = atoi(argv[4]);
+}
+#endif
+ 
+int  size, rank;
+MPI_Init(&argc, &argv);
+MPI_Comm_size(MPI_COMM_WORLD, &size);
+MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+//fprintf(stderr,"Rank(%d) Size(%d)\n",rank,size);
 
-  MPI_Init(&argc, &argv);
-  MPI_Comm_size(MPI_COMM_WORLD, &size);
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+float *matrix_C = (float*)malloc(nlin*ncol*sizeof(float));
+if(matrix_C == NULL) {
+   fprintf(stderr,"Error in Matrix C allocation.\n");
+   return 1; 
+}
 
-  if (argc < 3)
-  {       
-     nlin = 8192;
-     ncol = 8192;
-  }
-  else
-  {
-     nlin = atoi(argv[1]);
-     ncol = atoi(argv[2]);
-  }
+float *vec_A, *vec_B, *vec_C;
+vec_A = (float*)malloc((nlin/size)*ncol*sizeof(float));
+if(vec_A == NULL) {
+   fprintf(stderr,"Error in vector A allocation.\n");
+   return 1;
+}
+vec_B = (float*)malloc((nlin/size)*ncol*sizeof(float));
+if(vec_B == NULL) {
+   fprintf(stderr,"Error in vector B allocation.\n");
+   return 1;
+}
+vec_C = (float*)malloc((nlin/size)*ncol*sizeof(float));
+if(vec_C == NULL) {
+   fprintf(stderr,"Error in vector C allocation.\n");
+   return 1;
+}
 
-#ifdef ARIES
-  int AC_event_set;
-  char** AC_events;
-  long long * AC_values;
-  int AC_event_count;
+if(matrix_vt_create(nlin/size,ncol,vec_A,rank)) {
+   fprintf(stderr,"Error in vector A creation.\n");
+   return 1; 
+}
+if(matrix_vt_create(nlin/size,ncol,vec_B,rank)) {
+   fprintf(stderr,"Error in vector B creation.\n");
+   return 1; 
+}
 
-  int nodes,
-      cpn;
-
-  if (argc < 5)
-  {       
-     // Run the test on this many nodes.
-     nodes = 8;
-     // Run this many ranks per node in the test.
-     cpn = 32;
-  }
-  else
-  {
-     nodes = atoi(argv[3]);
-     cpn = atoi(argv[4]);
-  }
-
-  // Since we only want to do a gather on every n'th rank, we need to create a new MPI_Group
-  MPI_Group mod_group, group_world;
-  MPI_Comm mod_comm;
-  int members[nodes];
-  for (int id=0; id<nodes; id++)
-  {
-      members[id] = id * cpn;
-  }
-  MPI_Comm_group(MPI_COMM_WORLD, &group_world);
-  MPI_Group_incl(group_world, nodes, members, &mod_group);
-  MPI_Comm_create(MPI_COMM_WORLD, mod_group, &mod_comm);
-
-  int len_nodes = snprintf(NULL, 0, "%d", nodes);
-  int len_ncol  = snprintf(NULL, 0, "%d", ncol);
-  int len_cpn   = snprintf(NULL, 0, "%d", cpn);
-  size_t len = strlen(argv[0]) + len_nodes + len_ncol + len_cpn + 4; /* + 1 for terminating NULL */
-  char *filename = (char*)malloc(len);
-  snprintf(filename, len, "%s-%d-%d-%d", argv[0],nodes,ncol,size/nodes);
-
-  InitAriesCounters(filename, rank, cpn, &AC_event_set, &AC_events, &AC_values, &AC_event_count);
+#ifdef PAPI
+PAPI_library_init(PAPI_VER_CURRENT);
+PAPI_create_eventset(&event_set);
+int code = 0;
+for (int i = 0; i < event_count; i++)
+{
+   PAPI_event_name_to_code(events[i], &code);
+   PAPI_add_event(event_set, code);
+}
 #endif
 
-  if(rank == 0) {
-     matrix_A = malloc(nlin*ncol*sizeof(float));
-     if(matrix_A == NULL) {
-        fprintf(stderr,"Error in Matrix A allocation.\n");
-        return 1; 
-     }
-     if(matrix_vt_create(nlin,ncol,matrix_A)) {
-        fprintf(stderr,"Error in Matrix A creation.\n");
-        return 1; 
-     }
+MPI_Datatype rowtype;
+MPI_Type_contiguous(ncol, MPI_FLOAT, &rowtype);
+MPI_Type_commit(&rowtype);
 
-     matrix_B = malloc(nlin*ncol*sizeof(float));
-     if(matrix_B == NULL) {
-        fprintf(stderr,"Error in Matrix B allocation.\n");
-        return 1;
-     }
-     if(matrix_vt_create(nlin,ncol,matrix_B)) {
-        fprintf(stderr,"Error in Matrix B creation.\n");
-        return 1; 
-     }
-  }
-  else {
-     matrix_A = NULL;
-     matrix_B = NULL;
-  }
-
-  float *vec_A = malloc((nlin/size)*ncol*sizeof(float));
-  if(vec_A == NULL) {
-     fprintf(stderr,"Error in vector A allocation.\n");
-     return 1;
-  }
-  float *vec_B = malloc((nlin/size)*ncol*sizeof(float));
-  if(vec_B == NULL) {
-     fprintf(stderr,"Error in vector B allocation.\n");
-     return 1;
-  }
+//MPI_Status recv_status;
+int niter = 1;
 
 #ifdef PROFILING
-  //if(rank == 0) {
-  //   matrix_vt_print(nlin,ncol,matrix_A);
-  //   matrix_vt_print(nlin,ncol,matrix_B);
-  //}
+double t_start = 0.0, t_end = 0.0, t = 0.0;
+t_start = MPI_Wtime();
 #endif
 
-  MPI_Datatype rowtype;
-  MPI_Type_contiguous(ncol, MPI_FLOAT, &rowtype);
-  MPI_Type_commit(&rowtype);
+#ifdef PAPI
+PAPI_start(event_set);
+MPI_Barrier(MPI_COMM_WORLD);
+#endif
 
-  MPI_Status recv_status;
-  int niter = 100;
+for(int i = 0; i < niter; i++) {
+   if(matrix_vt_add((nlin/size)*ncol,vec_A,vec_B,vec_C)) {
+      fprintf(stderr,"Rank %d: Error in addition operation.\n",rank);
+      return 1;
+   }
+}
+//MPI_Status recv_status;
+//MPI_Request send_status;
+//for(int r = 0; r < size; r++) {
+//   if(r != rank) {
+//      MPI_Isend(vec_C,(nlin/size),rowtype,r,rank*100+r,MPI_COMM_WORLD,&send_status);
+//      MPI_Recv(matrix_C+r*(nlin/size)*ncol,(nlin/size),rowtype,r,r*100+rank,MPI_COMM_WORLD,&recv_status);
+//      MPI_Wait(&send_status, &recv_status);
+//   }
+//}
+//for(int j = rank*(nlin/size)*ncol; j < (nlin/size)*ncol; j++) {
+//   matrix_C[j] = vec_C[j];
+//}
+MPI_Allgather(vec_C,(nlin/size),rowtype,matrix_C,(nlin/size),rowtype,MPI_COMM_WORLD);
 
-#ifdef ARIES
-  StartRecordAriesCounters(rank, cpn, &AC_event_set, &AC_events, &AC_values, &AC_event_count);
-  MPI_Barrier(MPI_COMM_WORLD);
+#ifdef PAPI
+MPI_Barrier(MPI_COMM_WORLD);
+PAPI_stop(event_set, values);
+PAPI_reset(event_set);
 #endif
 
 #ifdef PROFILING
-  double t_start = 0.0, t_end = 0.0, t = 0.0;
-  t_start = MPI_Wtime();
+MPI_Barrier(MPI_COMM_WORLD);
+t_end = MPI_Wtime();
+t = t_end - t_start;
 #endif
 
-  for(int i = 0; i < niter; i++) {
-     if(rank == 0) {
-	if(size > 1) {
-           for(int r = 1; r < size; r++) { 
-              MPI_Send(matrix_A+r*(nlin/size)*ncol,(nlin/size),rowtype,r,r,MPI_COMM_WORLD);
-              MPI_Send(matrix_B+r*(nlin/size)*ncol,(nlin/size),rowtype,r,size+r,MPI_COMM_WORLD);
-           }
-	}
-     }
-     else {
-        MPI_Recv(vec_A,(nlin/size),rowtype,0,rank,MPI_COMM_WORLD,&recv_status);
-        MPI_Recv(vec_B,(nlin/size),rowtype,0,size+rank,MPI_COMM_WORLD,&recv_status);
-     }
-     if(rank == 0) {
-        if(matrix_vt_add((nlin/size)*ncol,matrix_A,matrix_B,matrix_A)) {
-           fprintf(stderr,"Rank %d: Error in addition operation.\n",rank);
-	   return 1;
-	}
-     }
-     else {
-        if(matrix_vt_add((nlin/size)*ncol,vec_A,vec_B,vec_A)) {
-           fprintf(stderr,"Rank %d: Error in addition operation.\n",rank);
-	   return 1;
-	}
-     }
-     if(rank == 0) {
-	if(size > 1) {
-           for(int r = 1; r < size; r++) { 
-              MPI_Recv(matrix_A+r*(nlin/size)*ncol,(nlin/size),rowtype,r,2*size+r,MPI_COMM_WORLD,&recv_status);
-           }
-	}
-     }
-     else {
-        MPI_Send(vec_A,(nlin/size),rowtype,0,2*size+rank,MPI_COMM_WORLD);
-     }
-  }
-
-  //MPI_Scatter(matrix_A,(nlin/size),rowtype,vec_A,(nlin/size),rowtype,0,MPI_COMM_WORLD);
-  //MPI_Scatter(matrix_B,(nlin/size),rowtype,vec_B,(nlin/size),rowtype,0,MPI_COMM_WORLD);
-  //for(int i = 0; i < niter; i++) {
-  //   if(matrix_vt_add((nlin/size)*ncol,vec_A,vec_B,vec_A)) {
-  //      fprintf(stderr,"Rank %d: Error in addition operation.\n",rank);
-  //      return 1;
-  //   }
-  //   MPI_Gather(vec_A,(nlin/size),rowtype,matrix_A,(nlin/size),rowtype,0,MPI_COMM_WORLD);
-  //}
-
-#ifdef PROFILING
-  t_end = MPI_Wtime();
-  t = t_end - t_start;
-#endif
-
-#ifdef ARIES
-  MPI_Barrier(MPI_COMM_WORLD);
-  EndRecordAriesCounters(rank, cpn, &AC_event_set, &AC_events, &AC_values, &AC_event_count);
-  FinalizeAriesCounters(&mod_comm, rank, cpn, &AC_event_set, &AC_events, &AC_values, &AC_event_count);
+#ifdef PAPI
+//printf("AR_NIC_ORB_PRF_RSP_BYTES_RCVD [rank %d]: %lld; AR_NIC_RAT_PRF_REQ_BYTES_RCVD [rank %d]: %lld\n", rank, values[1], rank, values[2]);
+for(int id=0; id<nodes; id++) {
+   if(rank == id * cpn) {
+      printf("\n");
+      printf("AR_NIC_ORB_PRF_REQ_BYTES_SENT [rank %d]: %lld; AR_NIC_ORB_PRF_RSP_BYTES_RCVD [rank %d]: %lld; AR_NIC_RAT_PRF_REQ_BYTES_RCVD [rank %d]: %lld; AR_NIC_RSPMON_NPT_EVENT_CNTR_NL_FLITS [rank %d]: %lld; AR_NIC_RSPMON_NPT_EVENT_CNTR_NL_PKTS [rank %d]: %lld; AR_NIC_ORB_PRF_RSP_BYTES_SENT [rank %d]: %lld\n", rank, values[0], rank, values[1], rank, values[2], rank, values[3], rank, values[4], rank, (values[3]-values[4])*16);
+   }
+}
 #endif
 
 #ifdef PROFILING
-  if(rank == 0) {
-     double sum = 0.;
-     for(int i=0; i < nlin; i++)
-       for(int j=0; j < ncol; j++)
-         sum = sum + matrix_A[j+i*ncol];
-     fprintf(stderr,"Sum of all elements of the matrix: %lf\n",sum);
-     fprintf(stderr,"Time: %lf\n",t);
-     //matrix_vt_print(nlin,ncol,matrix_A);
-  }
+if(rank == 0) {
+   //long double sum = 0.;
+   //for(int i=0; i < nlin; i++)
+   //  for(int j=0; j < ncol; j++)
+   //    sum = sum + matrix_C[j+i*ncol];
+   //fprintf(stderr,"Sum of all elements of the matrix: %Lf\n",sum);
+   fprintf(stderr,"Time: %lf\n",t);
+   //matrix_vt_print(nlin,ncol,matrix_C);
+   //matrix_vt_print(nlin/size,ncol,vec_A);
+}
 #endif
 
-  if(rank == 0) {
-     fprintf(stderr,"Matrix[0][1]: %.3f\n",matrix_A[1]);
-     fprintf(stderr,"Matrix[nlin-1][ncol-2]: %.3f\n",matrix_A[(ncol-2)+(nlin-1)*ncol]);
-  }
+//if(rank == 0) {
+//   fprintf(stderr,"Matrix[0][1]: %.3f\n",matrix_C[1]);
+//   fprintf(stderr,"Matrix[nlin-1][ncol-2]: %.3f\n",matrix_C[(ncol-2)+(nlin-1)*ncol]);
+//}
 
-  if(rank == 0) {
-     free(matrix_A);
-     free(matrix_B);
-  }
+//Release host memory
+free(matrix_C);
 
-  MPI_Type_free(&rowtype);
-  free(vec_A);
-  free(vec_B);
+//Release host memory
+MPI_Type_free(&rowtype);
+free(vec_A);
+free(vec_B);
+free(vec_C);
 
-  MPI_Finalize();
-  return 0;
+#ifdef PAPI
+PAPI_cleanup_eventset(event_set);
+PAPI_destroy_eventset(&event_set);
+PAPI_shutdown();
+#endif
+
+MPI_Finalize();
+ 
+return 0;
 }

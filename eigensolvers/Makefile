@@ -1,5 +1,6 @@
 FC	= ftn
 FFLAGS	= -h omp -O3 -g
+#incluir o dynamic aqui para o roofline
 
 all: pzheevd_aries
 

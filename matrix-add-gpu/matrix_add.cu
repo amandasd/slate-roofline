@@ -5,18 +5,20 @@
 #include <mpi.h>
 #include <cuda.h>
 #include <cuda_runtime.h>
-#include <sys/time.h>   // for gettimeofday()
 #ifdef PAPI
 #include <papi.h>
 #endif
  
-__global__ void MatAdd(float *A, float *B, float *C, int n)
-{
+__global__ void MatAdd(float *A, float *B, float *C, int n, int taskperItem){
   // Get our global thread ID
-  int i = blockIdx.x*blockDim.x+threadIdx.x;
-  // Make sure we do not go out of bounds
-  if(i < n)
-     C[i] = A[i] + B[i];
+  int global_id = blockIdx.x*blockDim.x*taskperItem+threadIdx.x;
+  for(int t = 0;t < taskperItem; t++)
+  {
+    int i = t * blockDim.x + global_id;
+    // Make sure we do not go out of bounds
+    if(i < n)
+       C[i] = A[i] + B[i];
+  }
 }
 
 int matrix_vt_create(int nlin, int ncol, float *m, int rank)
@@ -67,7 +69,6 @@ else
    nlin = atoi(argv[1]);
    ncol = atoi(argv[2]);
 }
-//fprintf(stderr,"nlin(%d) ncol(%d)\n",nlin,ncol);
 
 #ifdef PAPI
 int nodes, cpn;
@@ -89,7 +90,6 @@ int  size, rank;
 MPI_Init(&argc, &argv);
 MPI_Comm_size(MPI_COMM_WORLD, &size);
 MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-//fprintf(stderr,"Rank(%d) Size(%d)\n",rank,size);
 
 float *matrix_C = (float*)malloc(nlin*ncol*sizeof(float));
 if(matrix_C == NULL) {
@@ -165,10 +165,10 @@ MPI_Datatype rowtype;
 MPI_Type_contiguous(ncol, MPI_FLOAT, &rowtype);
 MPI_Type_commit(&rowtype);
 
-//MPI_Status recv_status;
 int niter = 100;
 
-int nblocks, blockSize;
+int nblocks, blockSize, taskperItem;
+taskperItem = 1;
 // Number of threads in each block
 if(argc < 6)
 {       
@@ -180,19 +180,14 @@ else
 }
 // Number of blocks; number max is 65535
 nblocks = (int)ceil((float)((nlin/size)*ncol)/blockSize);
-//fprintf(stderr,"blockSize(%d) nblocks(%d)\n",blockSize,nblocks);
 if(nblocks > 65535)
 {
    fprintf(stderr,"Number of blocks is higher than 65535!\n");
-   //return 0;
 }
 
 #ifdef PROFILING
-//double t_start = 0.0, t_end = 0.0, t = 0.0;
-//t_start = MPI_Wtime();
-double t;
-struct timeval start, end;
-gettimeofday(&start, NULL);
+double t_start = 0.0, t_end = 0.0, t = 0.0;
+t_start = MPI_Wtime();
 #endif
 
 #ifdef PAPI
@@ -206,12 +201,13 @@ cudaMemcpy(pB, vec_B, ((nlin/size)*ncol)*sizeof(float), cudaMemcpyHostToDevice);
  
 for(int i = 0; i < niter; i++) {
    //Execute the kernel
-   MatAdd<<<nblocks, blockSize>>>(pA, pB, pC, (nlin/size)*ncol);
+   MatAdd<<<nblocks, blockSize/taskperItem>>>(pA, pB, pC, (nlin/size)*ncol, taskperItem);
 }
 
 //Copy array back to host
 cudaMemcpy(vec_C, pC, ((nlin/size)*ncol)*sizeof(float), cudaMemcpyDeviceToHost);
 
+//Non-collective MPI routines
 //MPI_Status recv_status;
 //MPI_Request send_status;
 //for(int r = 0; r < size; r++) {
@@ -224,6 +220,8 @@ cudaMemcpy(vec_C, pC, ((nlin/size)*ncol)*sizeof(float), cudaMemcpyDeviceToHost);
 //for(int j = rank*(nlin/size)*ncol; j < (nlin/size)*ncol; j++) {
 //   matrix_C[j] = vec_C[j];
 //}
+
+//Collective MPI routine
 MPI_Allgather(vec_C,(nlin/size),rowtype,matrix_C,(nlin/size),rowtype,MPI_COMM_WORLD);
 
 #ifdef PAPI
@@ -232,10 +230,9 @@ PAPI_stop(event_set, values);
 #endif
 
 #ifdef PROFILING
-//t_end = MPI_Wtime();
-//t = t_end - t_start;
-gettimeofday(&end, NULL);
-t = ((((end.tv_sec - start.tv_sec) * 1000000) + end.tv_usec) - (start.tv_usec))/1000000.;
+MPI_Barrier(MPI_COMM_WORLD);
+t_end = MPI_Wtime();
+t = t_end - t_start;
 #endif
 
 #ifdef PAPI
@@ -259,20 +256,15 @@ for(int id=0; id<nodes; id++) {
 
 #ifdef PROFILING
 if(rank == 0) {
-   long double sum = 0.;
-   for(int i=0; i < nlin; i++)
-     for(int j=0; j < ncol; j++)
-       sum = sum + matrix_C[j+i*ncol];
-   fprintf(stderr,"Sum of all elements of the matrix: %Lf\n",sum);
+   //long double sum = 0.;
+   //for(int i=0; i < nlin; i++)
+   //  for(int j=0; j < ncol; j++)
+   //    sum = sum + matrix_C[j+i*ncol];
+   //fprintf(stderr,"Sum of all elements of the matrix: %Lf\n",sum);
    fprintf(stderr,"Time: %lf\n",t);
    //matrix_vt_print(nlin,ncol,matrix_C);
 }
 #endif
-
-if(rank == 0) {
-   fprintf(stderr,"Matrix[0][1]: %.3f\n",matrix_C[1]);
-   fprintf(stderr,"Matrix[nlin-1][ncol-2]: %.3f\n",matrix_C[(ncol-2)+(nlin-1)*ncol]);
-}
 
 //Release host memory
 free(matrix_C);

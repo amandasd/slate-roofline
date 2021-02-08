@@ -21,9 +21,11 @@ salloc -C gpu -N 2 -t 15 -A m1759 --exclusive -q special
 ```
 
 ```
-srun -N 2 -n 2 -c 2 --cpu_bind=cores ./papi_ib_example 2 1 2&>output 
+srun -N 2 -n 2 -c 2 --cpu_bind=cores ./papi_ib_example 10000 2 1 2&>output 
 
 Arguments:
+
+vector size: 10000
 
 number of nodes: 2
 
@@ -31,9 +33,11 @@ number of MPI ranks per node: 1
 ```
 
 ```
-srun -N 2 -n 80 -c 2 --cpu_bind=cores ./papi_ib_example 2 40 2&>output 
+srun -N 2 -n 80 -c 2 --cpu_bind=cores ./papi_ib_example 100000 2 40 2&>output 
 
 Arguments:
+
+vector size: 100000
 
 number of nodes: 2
 

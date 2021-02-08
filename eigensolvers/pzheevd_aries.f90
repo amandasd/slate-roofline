@@ -136,12 +136,13 @@ program pzheevd_aries
    type(MPI_Comm) :: mod_comm
    type(MPI_Group) :: mod_group, group_world
    
-   character(kind=c_char,len=:), allocatable :: progname
+   character(len=:), allocatable :: progname
    integer :: arglen
 
-   character(len=4) :: str_nodes, str_rpn
+   character(len=3) :: str_nodes
+   character(len=4) :: str_rpn
    character(len=6) :: str_ln
-   character(len=:), allocatable :: filename
+   character(kind=c_char,len=:), allocatable :: filename
    
    integer(c_int) :: AC_event_set !int in C
    type(c_ptr), dimension(:), allocatable :: AC_events !char ** in C 
