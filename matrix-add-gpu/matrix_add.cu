@@ -9,6 +9,8 @@
 #    include <papi.h>
 #endif
 
+#include "interface.h"
+
 __global__ void
 MatAdd(float* A, float* B, float* C, int n, int taskperItem)
 {
@@ -48,11 +50,8 @@ matrix_vt_print(int nlin, int ncol, float* m)
 int
 main(int argc, char** argv)
 {
-#ifdef PAPI
-    int         event_set   = PAPI_NULL;
-    int         event_count = 8;
-    long long   values[event_count];
-    const char* events[] = { "infiniband:::mlx5_0_1_ext:port_xmit_data",
+    int         event_count = 9;
+    const char* events[]    = { "infiniband:::mlx5_0_1_ext:port_xmit_data",
                              "infiniband:::mlx5_0_1_ext:port_rcv_data",
                              "infiniband:::mlx5_2_1_ext:port_xmit_data",
                              "infiniband:::mlx5_2_1_ext:port_rcv_data",
@@ -60,8 +59,21 @@ main(int argc, char** argv)
                              "infiniband:::mlx5_4_1_ext:port_rcv_data",
                              "infiniband:::mlx5_6_1_ext:port_xmit_data",
                              "infiniband:::mlx5_6_1_ext:port_rcv_data" };
+
+#ifdef PAPI
+    int event_set = PAPI_NULL;
+    long long values[event_count];
+#else
+    set_papi_events(event_count, events);
 #endif
 
+    int size, rank;
+    MPI_Init(&argc, &argv);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    initialize(&argc, &argv);
+
+    push_region("main");
     int nlin, ncol;
     if(argc < 3)
     {
@@ -89,11 +101,6 @@ main(int argc, char** argv)
         cpn   = atoi(argv[4]);
     }
 #endif
-
-    int size, rank;
-    MPI_Init(&argc, &argv);
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     float* matrix_C = (float*) malloc(nlin * ncol * sizeof(float));
     if(matrix_C == NULL)
@@ -203,6 +210,7 @@ main(int argc, char** argv)
     double t_start = 0.0, t_end = 0.0, t = 0.0;
     t_start = MPI_Wtime();
 #endif
+    push_region("profiling");
 
 #ifdef PAPI
     PAPI_start(event_set);
@@ -245,6 +253,8 @@ main(int argc, char** argv)
     MPI_Barrier(MPI_COMM_WORLD);
     PAPI_stop(event_set, values);
 #endif
+
+    pop_region("profiling");
 
 #ifdef PROFILING
     MPI_Barrier(MPI_COMM_WORLD);
@@ -315,6 +325,8 @@ main(int argc, char** argv)
     PAPI_shutdown();
 #endif
 
+    pop_region("main");
+    finalize();
     MPI_Finalize();
 
     return 0;
