@@ -1,3 +1,4 @@
+
 #include <math.h>
 #include <mpi.h>
 #include <stdio.h>
@@ -6,6 +7,8 @@
 #ifdef PAPI
 #    include <papi.h>
 #endif
+
+#include "interface.h"
 
 int
 matrix_vt_add(int num, float* m, float* n, float* r)
@@ -42,15 +45,25 @@ matrix_vt_print(int nlin, int ncol, float* m)
 int
 main(int argc, char** argv)
 {
-#ifdef PAPI
-    int         event_set   = PAPI_NULL;
     int         event_count = 5;
-    long long   values[event_count];
-    const char* events[] = { "AR_NIC_ORB_PRF_REQ_BYTES_SENT",
+    const char* events[]    = { "AR_NIC_ORB_PRF_REQ_BYTES_SENT",
                              "AR_NIC_ORB_PRF_RSP_BYTES_RCVD",
                              "AR_NIC_RAT_PRF_REQ_BYTES_RCVD",
                              "AR_NIC_RSPMON_NPT_EVENT_CNTR_NL_FLITS",
                              "AR_NIC_RSPMON_NPT_EVENT_CNTR_NL_PKTS" };
+
+    set_papi_events(event_count, events);
+
+    int size, rank;
+    MPI_Init(&argc, &argv);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    initialize(&argc, &argv);
+
+    push_region("main");
+#ifdef PAPI
+    int       event_set = PAPI_NULL;
+    long long values[event_count];
 #endif
 
     int nlin, ncol;
@@ -81,11 +94,6 @@ main(int argc, char** argv)
         cpn   = atoi(argv[4]);
     }
 #endif
-
-    int size, rank;
-    MPI_Init(&argc, &argv);
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     // fprintf(stderr,"Rank(%d) Size(%d)\n",rank,size);
 
     float* matrix_C = (float*) malloc(nlin * ncol * sizeof(float));
@@ -149,6 +157,8 @@ main(int argc, char** argv)
     t_start = MPI_Wtime();
 #endif
 
+    push_region("profiling");
+
 #ifdef PAPI
     PAPI_start(event_set);
     MPI_Barrier(MPI_COMM_WORLD);
@@ -182,6 +192,8 @@ main(int argc, char** argv)
     PAPI_stop(event_set, values);
     PAPI_reset(event_set);
 #endif
+
+    pop_region("profiling");
 
 #ifdef PROFILING
     MPI_Barrier(MPI_COMM_WORLD);
@@ -245,6 +257,8 @@ main(int argc, char** argv)
     PAPI_shutdown();
 #endif
 
+    pop_region("main");
+    finalize();
     MPI_Finalize();
 
     return 0;
