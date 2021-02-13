@@ -72,17 +72,19 @@ public:
 using bundle_t     = tim::auto_tuple<tim::component::papi_network_vector>;
 using custom_map_t = std::unordered_map<const char*, bundle_t>;
 
-static bool                     papi_network_configured = false;
-static int                      network_event_set       = PAPI_NULL;
-static std::vector<std::string> network_events{};
-static std::vector<int>         network_event_codes{};
-static custom_map_t             network_bundle{};
+static std::map<std::string, int> network_event_codes_map{};
+static bool                       papi_network_configured = false;
+static int                        network_event_set       = PAPI_NULL;
+static std::vector<std::string>   network_events{};
+static std::vector<int>           network_event_codes{};
+static custom_map_t               network_bundle{};
 
 static void
 create_network_event_set()
 {
-    PAPI_library_init(PAPI_VER_CURRENT);
     PAPI_create_eventset(&network_event_set);
+
+    assert(network_events.size() == network_event_codes.size());
 
     std::set<int> _valid{};
     for(size_t i = 0; i < network_event_codes.size(); ++i)
@@ -119,17 +121,23 @@ extern "C"
     void set_papi_events(int nevents, const char** events)
     {
         PAPI_library_init(PAPI_VER_CURRENT);
-        network_event_codes.resize(nevents, 0);
         for(int i = 0; i < nevents; ++i)
         {
-            auto ret = PAPI_event_name_to_code(events[i], &(network_event_codes[i]));
+            int _evt_code = PAPI_NULL;
+            auto ret = PAPI_event_name_to_code(events[i], &_evt_code);
             // tim::papi::check(ret, std::string{ "Warning!! Failure converting " } +
             // std::string{ events[i] } + " to enum value");
             //    continue;
             // std::cout << events[i] << " maps to " << network_event_codes[i] <<
             // std::endl;
-            if(ret == PAPI_OK)
-                network_events.emplace_back(events[i]);
+            if(ret == PAPI_OK && _evt_code != PAPI_NULL)
+                network_event_codes_map.emplace(events[i], _evt_code);
+        }
+
+        for(auto& itr : network_event_codes_map)
+        {
+            network_events.emplace_back(itr.first);
+            network_event_codes.emplace_back(itr.second);
         }
     }
 
