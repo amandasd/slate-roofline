@@ -6,7 +6,7 @@ endif()
 #
 #       Non-pinned memory
 #
-add_executable(matrix-add-gpu matrix_add.cu $<TARGET_OBJECTS:slate-roofline::timemory>)
+add_executable(matrix-add-gpu matrix_add_gpu.cu $<TARGET_OBJECTS:slate-roofline::timemory>)
 
 target_link_libraries(matrix-add-gpu PRIVATE
     slate-roofline::compile-flags
@@ -20,7 +20,7 @@ endif()
 #
 #       Pinned memory
 #
-add_executable(matrix-add-gpu-pinned matrix_add.cu $<TARGET_OBJECTS:slate-roofline::timemory>)
+add_executable(matrix-add-gpu-pinned matrix_add_gpu.cu $<TARGET_OBJECTS:slate-roofline::timemory>)
 
 target_compile_definitions(matrix-add-gpu-pinned PRIVATE PINNED)
 
