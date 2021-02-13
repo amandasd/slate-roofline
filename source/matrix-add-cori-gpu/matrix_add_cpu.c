@@ -30,13 +30,14 @@ matrix_vt_print(int nlin, int ncol, float *m)
 {  
     for(int i = 0; i < nlin; i++) {
         for(int j = 0; j < ncol; j++)
-            fprintf(stderr,"%.3f ",m[j+i*ncol]);
-        fprintf(stderr,"\n");
+            fprintf(stderr, "%.3f ", m[j+i*ncol]);
+        fprintf(stderr, "\n");
     }
 }
 #endif
 
-int main(int argc, char **argv) 
+int 
+main(int argc, char **argv) 
 {
     set_papi_events(event_count, events);
 
@@ -60,33 +61,33 @@ int main(int argc, char **argv)
     
     float *matrix_C = (float*)malloc(nlin*ncol*sizeof(float));
     if(matrix_C == NULL) {
-         fprintf(stderr,"Error in Matrix C allocation.\n");
+         fprintf(stderr, "Error in Matrix C allocation.\n");
          return 1; 
     }
     
     float *vec_A, *vec_B, *vec_C;
-    vec_A = (float*)malloc((nlin/size)*ncol*sizeof(float));
+    vec_A = (float*)malloc((nlin / size)*ncol*sizeof(float));
     if(vec_A == NULL) {
-         fprintf(stderr,"Error in vector A allocation.\n");
+         fprintf(stderr, "Error in vector A allocation.\n");
          return 1;
     }
-    vec_B = (float*)malloc((nlin/size)*ncol*sizeof(float));
+    vec_B = (float*)malloc((nlin / size)*ncol*sizeof(float));
     if(vec_B == NULL) {
-         fprintf(stderr,"Error in vector B allocation.\n");
+         fprintf(stderr, "Error in vector B allocation.\n");
          return 1;
     }
-    vec_C = (float*)malloc((nlin/size)*ncol*sizeof(float));
+    vec_C = (float*)malloc((nlin / size)*ncol*sizeof(float));
     if(vec_C == NULL) {
-         fprintf(stderr,"Error in vector C allocation.\n");
+         fprintf(stderr, "Error in vector C allocation.\n");
          return 1;
     }
     
-    if(matrix_vt_create(nlin/size,ncol,vec_A,rank)) {
-         fprintf(stderr,"Error in vector A creation.\n");
+    if(matrix_vt_create(nlin / size, ncol, vec_A, rank)) {
+         fprintf(stderr, "Error in vector A creation.\n");
          return 1; 
     }
-    if(matrix_vt_create(nlin/size,ncol,vec_B,rank)) {
-         fprintf(stderr,"Error in vector B creation.\n");
+    if(matrix_vt_create(nlin / size, ncol, vec_B, rank)) {
+         fprintf(stderr, "Error in vector B creation.\n");
          return 1; 
     }
     
@@ -103,8 +104,8 @@ int main(int argc, char **argv)
     push_region("profiling"); 
 
     for(int i = 0; i < niter; i++) {
-        if(matrix_vt_add((nlin/size)*ncol,vec_A,vec_B,vec_C)) {
-            fprintf(stderr,"Rank %d: Error in addition operation.\n",rank);
+        if(matrix_vt_add((nlin / size)*ncol, vec_A, vec_B, vec_C)) {
+            fprintf(stderr, "Rank %d: Error in addition operation.\n", rank);
             return 1;
         }
     }
@@ -114,8 +115,8 @@ int main(int argc, char **argv)
     // MPI_Request send_status;
     // for(int r = 0; r < size; r++) {
     //    if(r != rank) {
-    //       MPI_Isend(vec_C,(nlin/size),rowtype,r,rank*100+r,MPI_COMM_WORLD,&send_status);
-    //       MPI_Recv(matrix_C+r*(nlin/size)*ncol,(nlin/size),rowtype,r,r*100+rank,MPI_COMM_WORLD,&recv_status);
+    //       MPI_Isend(vec_C, (nlin/size), rowtype, r, rank*100+r, MPI_COMM_WORLD, &send_status);
+    //       MPI_Recv(matrix_C+r*(nlin/size)*ncol, (nlin/size), rowtype, r, r*100+rank, MPI_COMM_WORLD, &recv_status);
     //       MPI_Wait(&send_status, &recv_status);
     //    }
     // }
@@ -124,7 +125,8 @@ int main(int argc, char **argv)
     // }
     
     // Collective MPI routines
-    MPI_Allgather(vec_C,(nlin/size),rowtype,matrix_C,(nlin/size),rowtype,MPI_COMM_WORLD);
+    MPI_Allgather(vec_C, (nlin / size), rowtype, matrix_C, (nlin / size), rowtype,
+                  MPI_COMM_WORLD); 
 
     MPI_Barrier(MPI_COMM_WORLD);
     pop_region("profiling"); 
@@ -141,10 +143,10 @@ int main(int argc, char **argv)
         // for(int i=0; i < nlin; i++)
         //   for(int j=0; j < ncol; j++)
         //     sum = sum + matrix_C[j+i*ncol];
-        // fprintf(stderr,"Sum of all elements of the matrix: %Lf\n",sum);
-        fprintf(stderr,"Time: %lf\n",t);
-        // matrix_vt_print(nlin,ncol,matrix_C);
-        // matrix_vt_print(nlin/size,ncol,vec_A);
+        // fprintf(stderr, "Sum of all elements of the matrix: %Lf\n", sum);
+        fprintf(stderr, "Time: %lf\n", t);
+        // matrix_vt_print(nlin, ncol, matrix_C);
+        // matrix_vt_print(nlin/size, ncol, vec_A);
     }
 #endif
     
