@@ -8,7 +8,7 @@ if(USE_TIMEMORY)
 endif()
 
 add_subdirectory(matrix-add-hsw)
-add_subdirectory(matrix-add-gpu)
+add_subdirectory(matrix-add-cori-gpu)
 
 # add_subdirectory(lib)
 # add_subdirectory(pt2pt)
