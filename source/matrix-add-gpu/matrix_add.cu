@@ -9,7 +9,7 @@
 #    include <papi.h>
 #endif
 
-#include "interface.h"
+#include "timemory-interface/interface.h"
 
 __global__ void
 MatAdd(float* A, float* B, float* C, int n, int taskperItem)

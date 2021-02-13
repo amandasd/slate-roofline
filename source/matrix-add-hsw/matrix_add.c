@@ -8,7 +8,7 @@
 #    include <papi.h>
 #endif
 
-#include "interface.h"
+#include "timemory-interface/interface.h"
 
 int
 matrix_vt_add(int num, float* m, float* n, float* r)
