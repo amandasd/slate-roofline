@@ -18,7 +18,7 @@
 
 ```console
 git clone <this-repo> slate-roofline-source
-cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=${PWD/slate-roofline -DUSE_CUDA=ON -B build-slate-roofline slate-roofline-source
+cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=${PWD}/slate-roofline -DUSE_CUDA=ON -B build-slate-roofline slate-roofline-source
 cmake --build build-slate-roofline --target install --parallel 4
 ```
 
