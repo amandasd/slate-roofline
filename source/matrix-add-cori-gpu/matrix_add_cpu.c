@@ -39,8 +39,6 @@ matrix_vt_print(int nlin, int ncol, float *m)
 int 
 main(int argc, char **argv) 
 {
-    set_papi_events(event_count, events);
-
     int  size, rank;
     MPI_Init(&argc, &argv);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
