@@ -1,6 +1,19 @@
-
 if(NOT USE_CUDA)
     return()
+endif()
+
+#
+#      cpu 
+#
+add_executable(matrix-add-cpu matrix_add_cpu.c $<TARGET_OBJECTS:slate-roofline::timemory>)
+
+target_link_libraries(matrix-add-cpu PRIVATE
+    slate-roofline::compile-flags
+    slate-roofline::tpls)
+
+if(USE_COMPILER_INSTRUMENTATION)
+    target_link_libraries(matrix-add-cpu PRIVATE
+        timemory::timemory-compiler-instrument)
 endif()
 
 #
@@ -33,5 +46,5 @@ if(USE_COMPILER_INSTRUMENTATION)
         timemory::timemory-compiler-instrument)
 endif()
 
-install(TARGETS matrix-add-gpu matrix-add-gpu-pinned
+install(TARGETS matrix-add-gpu matrix-add-gpu-pinned matrix-add-cpu
     DESTINATION ${CMAKE_INSTALL_BINDIR})

@@ -7,7 +7,7 @@ if(USE_TIMEMORY)
     target_compile_definitions(slate-roofline-tpls INTERFACE USE_TIMEMORY)
 endif()
 
-add_subdirectory(matrix-add-hsw)
+# add_subdirectory(matrix-add-hsw)
 add_subdirectory(matrix-add-cori-gpu)
 
 # add_subdirectory(lib)
