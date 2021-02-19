@@ -147,6 +147,9 @@ extern "C"
         tim::settings::cout_output()       = false;
         tim::settings::flamegraph_output() = false;
         tim::settings::global_components() = "wall_clock, cpu_clock, peak_rss";
+        tim::settings::papi_events() =
+            "PAPI_TOT_CYC, PAPI_TOT_INS, PAPI_RES_STL, PAPI_STL_CCY, PAPI_LD_INS, "
+            "PAPI_SR_INS, PAPI_LST_INS";
 
         if(!tim::settings::papi_events().empty())
             tim::settings::global_components() += ", papi_array";
@@ -205,6 +208,9 @@ papi_network_vector::global_init()
 void
 papi_network_vector::global_finalize()
 {
+    if(network_events.empty())
+        return;
+
     std::vector<long long> values(network_events.size(), 0);
     papi::stop(network_event_set, values.data());
     papi::remove_events(network_event_set, network_event_codes.data(), network_event_codes.size());
